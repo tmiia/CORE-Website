@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "@/styles/globals.css";
+import Header from "@/components/Header";
 
 const anonymousPro = localFont({
   src: [
@@ -39,8 +40,9 @@ export default function SiteLayout({
 }>) {
   return (
     <div
-      className={`${anonymousPro.variable} ${monigue.variable} min-h-screen flex flex-col antialiased`}
+      className={`${anonymousPro.variable} ${monigue.variable} min-h-screen flex flex-col antialiased bg-linear-59 from-light-orange to-dark-orange`}
     >
+      <Header />
       {children}
     </div>
   );
