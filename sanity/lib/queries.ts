@@ -19,3 +19,15 @@ export const allPagesQuery = groq`
     slug,
   }
 `;
+
+export const allStoriesQuery = groq`
+  *[_type == "story"] | order(_createdAt asc) {
+    _id,
+    title,
+    origin,
+    birthYear,
+    description,
+    slug,
+    thumbnail,
+  }
+`;
