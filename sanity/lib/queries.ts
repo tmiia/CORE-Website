@@ -31,3 +31,12 @@ export const allStoriesQuery = groq`
     thumbnail,
   }
 `;
+
+export const projectTopicsQuery = groq`
+  *[_type == "projectTopic" && defined(title) && defined(body)] | order(order asc, _createdAt asc) {
+    _id,
+    title,
+    subtitle,
+    body,
+  }
+`;

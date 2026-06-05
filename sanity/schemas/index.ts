@@ -1,6 +1,13 @@
 import { pageSchema } from "./page";
 import { genreSchema } from "./genre";
 import { playlistSchema } from "./playlist";
+import { projectTopicSchema } from "./projectTopic";
 import { storySchema } from "./story";
 
-export const schemaTypes = [pageSchema, genreSchema, playlistSchema, storySchema];
+export const schemaTypes = [
+  pageSchema,
+  genreSchema,
+  playlistSchema,
+  storySchema,
+  projectTopicSchema,
+];

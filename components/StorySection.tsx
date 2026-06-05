@@ -77,7 +77,7 @@ export default async function StorySection() {
         />
       </div>
 
-      <div className="absolute bottom-[80px] left-[30px] -translate-x-1/2 translate-y-1/2 md:bottom-[-50px] md:left-0 md:translate-x-0 md:translate-y-0 md:right-0 pointer-events-none">
+      <div className="pointer-events-none absolute bottom-[80px] left-[30px] z-80 -translate-x-1/2 translate-y-1/2 md:bottom-[-50px] md:left-0 md:right-0 md:translate-x-0 md:translate-y-0">
         <Image
           src="/assets/stickers/antenna.svg"
           alt=""
