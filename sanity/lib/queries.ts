@@ -28,7 +28,56 @@ export const allStoriesQuery = groq`
     birthYear,
     description,
     slug,
+    "path": coalesce(slug.current, _id),
     thumbnail,
+  }
+`;
+
+export const allStorySlugsQuery = groq`
+  *[_type == "story"] {
+    slug,
+    "path": coalesce(slug.current, _id),
+  }
+`;
+
+export const storyBySlugQuery = groq`
+  *[_type == "story" && (slug.current == $slug || _id == $slug)][0] {
+    _id,
+    title,
+    origin,
+    birthYear,
+    description,
+    slug,
+    "path": coalesce(slug.current, _id),
+    thumbnail,
+    content,
+    keyConcepts[] {
+      _key,
+      title,
+      description,
+    },
+    archiveImages[] {
+      _key,
+      image,
+      caption,
+      source,
+    },
+    resources[] {
+      _key,
+      title,
+      url,
+      description,
+      type,
+    },
+    genre-> {
+      _id,
+      name,
+      origin,
+      birth,
+      description,
+      history,
+      images,
+    },
   }
 `;
 

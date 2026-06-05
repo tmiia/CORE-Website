@@ -21,6 +21,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import Link from "next/link";
 import { urlForImage } from "@/sanity/lib/image";
 import type { SanityImageSource } from "@sanity/image-url";
 
@@ -31,6 +32,7 @@ type Story = {
   birthYear?: number;
   description?: string;
   slug?: { current: string };
+  path?: string;
   thumbnail?: SanityImageSource;
 };
 
@@ -77,23 +79,10 @@ function StorySlide({
   const imageUrl = slide.story.thumbnail
     ? urlForImage(slide.story.thumbnail).width(1200).height(675).url()
     : null;
+  const storyPath = slide.story.slug?.current ?? slide.story.path;
   const x = useTransform(() => offsetX.get() + trackX.get());
-
-  return (
-    <motion.div
-      className="absolute left-0 top-0 select-none"
-      role="listitem"
-      aria-roledescription="slide"
-      aria-label={`${slide.story.title}, ${storyPosition} sur ${totalStories}`}
-      aria-current={isActive ? "true" : undefined}
-      aria-hidden={!isActive}
-      style={{ width: slideWidth, x }}
-      animate={{
-        opacity: isActive ? 1 : INACTIVE_OPACITY,
-        scale: isActive ? ACTIVE_SCALE : 1,
-      }}
-      transition={{ duration: shouldReduceMotion ? 0 : 0.35, ease: "easeOut" }}
-    >
+  const slideContent = (
+    <>
       {/* Thumbnail */}
       <div className="relative w-full aspect-video overflow-hidden">
         {imageUrl ? (
@@ -101,7 +90,8 @@ function StorySlide({
             src={imageUrl}
             alt={slide.story.title}
             fill
-            className="object-cover"
+            draggable={false}
+            className="pointer-events-none select-none object-cover"
             sizes="(max-width: 640px) 82vw, (max-width: 1024px) 70vw, 620px"
             priority={isActive}
           />
@@ -138,19 +128,46 @@ function StorySlide({
                 </div>
               </>)}
 
-            {slide.story.slug && (
+            {storyPath && (
               <div className="mt-5 px-1 text-center">
-                <a
-                  href={`/stories/${slide.story.slug.current}`}
-                  className="font-anonymous text-background text-sm uppercase tracking-wide transition-opacity hover:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background"
-                >
+                <span className="font-anonymous text-background text-sm uppercase tracking-wide transition-opacity group-hover:opacity-60">
                   [Lire l&apos;histoire -&gt;]
-                </a>
+                </span>
               </div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
+    </>
+  );
+
+  return (
+    <motion.div
+      className="absolute left-0 top-0 select-none"
+      role="listitem"
+      aria-roledescription="slide"
+      aria-label={`${slide.story.title}, ${storyPosition} sur ${totalStories}`}
+      aria-current={isActive ? "true" : undefined}
+      aria-hidden={!isActive}
+      style={{ width: slideWidth, x }}
+      animate={{
+        opacity: isActive ? 1 : INACTIVE_OPACITY,
+        scale: isActive ? ACTIVE_SCALE : 1,
+      }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.35, ease: "easeOut" }}
+    >
+      {storyPath ? (
+        <Link
+          href={`/stories/${storyPath}`}
+          tabIndex={isActive ? 0 : -1}
+          className="group block cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background"
+          aria-label={`Lire l'histoire ${slide.story.title}`}
+        >
+          {slideContent}
+        </Link>
+      ) : (
+        slideContent
+      )}
     </motion.div>
   );
 }
