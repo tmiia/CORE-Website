@@ -316,7 +316,7 @@ export default async function StoryDetailPage({ params }: PageProps) {
         {hasKeyConcepts && (
           <section className="border-t border-[#171717]/50 pt-10">
             <h2 className="font-monigue text-5xl uppercase leading-none sm:text-6xl">
-              Notions clés
+              Notions cles
             </h2>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {story.keyConcepts?.map((concept) => (

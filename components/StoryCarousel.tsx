@@ -298,7 +298,9 @@ export default function StoryCarousel({ stories }: Props) {
       duration: 0.35,
       ease: "easeOut",
       onUpdate: recenterSlides,
-      onComplete: recenterSlides,
+      onComplete: () => {
+        recenterSlides();
+      },
     });
   }, [
     findClosestSlideIndex,
@@ -411,8 +413,6 @@ export default function StoryCarousel({ stories }: Props) {
       aria-roledescription="carousel"
       tabIndex={0}
       className="relative h-[430px] w-full touch-pan-y focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background sm:h-[540px] lg:h-[680px]"
-      onMouseEnter={pauseAutoplay}
-      onMouseLeave={resumeAutoplay}
       onFocus={pauseAutoplay}
       onBlur={resumeAutoplay}
       onKeyDown={handleKeyDown}
