@@ -2,16 +2,16 @@ import { defineConfig } from "sanity";
 import { structureTool } from "sanity/structure";
 import { visionTool } from "@sanity/vision";
 import { schemaTypes } from "./schemas";
+import { sanityDataset, sanityProjectId } from "./lib/env";
 
-const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!;
-const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET ?? "production";
+const projectId = sanityProjectId ?? "missing-project-id";
 
 export default defineConfig({
   name: "default",
   title: "Core Website",
 
   projectId,
-  dataset,
+  dataset: sanityDataset,
 
   plugins: [structureTool(), visionTool()],
 

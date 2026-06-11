@@ -5,11 +5,13 @@ import { projectTopicsQuery } from "@/sanity/lib/queries";
 import ProjectModal, { type ProjectTopic } from "./ProjectModal";
 
 export default async function Header() {
-  const projectTopics = await client.fetch<ProjectTopic[]>(
-    projectTopicsQuery,
-    {},
-    { next: { revalidate: 60 } },
-  );
+  const projectTopics = client
+    ? await client.fetch<ProjectTopic[]>(
+        projectTopicsQuery,
+        {},
+        { next: { revalidate: 60 } },
+      )
+    : [];
 
   return (
     <header className="pointer-events-none fixed left-0 right-0 top-0 z-90 flex items-center justify-between px-6 py-5">

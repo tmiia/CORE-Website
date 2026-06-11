@@ -4,7 +4,9 @@ import { allStoriesQuery } from "@/sanity/lib/queries";
 import StoryCarousel from "./StoryCarousel";
 
 export default async function StorySection() {
-  const stories = await client.fetch(allStoriesQuery, {}, { next: { revalidate: 60 } });
+  const stories = client
+    ? await client.fetch(allStoriesQuery, {}, { next: { revalidate: 60 } })
+    : [];
 
   return (
     <section className="relative w-full flex flex-col items-center py-10 sm:py-12 min-h-dvh overflow-hidden">

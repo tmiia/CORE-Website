@@ -151,6 +151,8 @@ function getResourceLabel(type?: string) {
 }
 
 async function getStory(slug: string) {
+  if (!client) return null;
+
   return client.fetch<Story | null>(
     storyBySlugQuery,
     { slug },
@@ -159,6 +161,8 @@ async function getStory(slug: string) {
 }
 
 export async function generateStaticParams() {
+  if (!client) return [];
+
   const stories = await client.fetch<StorySlug[]>(
     allStorySlugsQuery,
     {},
