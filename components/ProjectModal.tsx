@@ -395,7 +395,7 @@ export default function ProjectModal({ topics, className }: ProjectModalProps) {
                 <AnimatePresence mode="wait">
                   <motion.p
                     key={activeTopic?._id}
-                    className="m-auto max-w-152 -translate-y-1/2 px-1 text-center font-anonymous text-base leading-snug text-[#171717] sm:text-lg md:text-xl"
+                    className="m-auto max-w-170 -translate-y-1/2 px-1 text-center font-anonymous text-base leading-snug text-[#171717] sm:text-lg md:text-xl"
                     initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 14 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -14 }}
