@@ -51,6 +51,7 @@ const MOBILE_SLIDE_GAP = 24;
 const TABLET_SLIDE_GAP = 40;
 const DESKTOP_SLIDE_GAP = 64;
 const DRAG_CLICK_THRESHOLD = 6;
+const MOBILE_SNAP_THRESHOLD = 32;
 
 type CarouselSlide = {
   story: Story;
@@ -186,6 +187,7 @@ export default function StoryCarousel({ stories }: Props) {
   const autoplayControlsRef = useRef<AnimationPlaybackControls | null>(null);
   const autoplayIntervalRef = useRef<number | null>(null);
   const shouldSuppressClickRef = useRef(false);
+  const dragStartIndexRef = useRef(0);
   const isPausedRef = useRef(false);
   const shouldReduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -253,6 +255,28 @@ export default function StoryCarousel({ stories }: Props) {
     [slideWidth, trackX, viewportWidth],
   );
 
+  const findAdjacentSlideIndex = useCallback(
+    (fromIndex: number, direction: 1 | -1) => {
+      const fromOffset = offsetsRef.current[fromIndex];
+      if (fromOffset === undefined) return fromIndex;
+
+      let adjacentIndex = fromIndex;
+      let adjacentDistance = Number.POSITIVE_INFINITY;
+
+      offsetsRef.current.forEach((offset, index) => {
+        const distance = (offset - fromOffset) * direction;
+
+        if (distance > 0 && distance < adjacentDistance) {
+          adjacentDistance = distance;
+          adjacentIndex = index;
+        }
+      });
+
+      return adjacentIndex;
+    },
+    [],
+  );
+
   const recenterSlides = useCallback(() => {
     if (!viewportWidth || !slides.length) return;
 
@@ -291,19 +315,19 @@ export default function StoryCarousel({ stories }: Props) {
     viewportWidth,
   ]);
 
-  const snapToClosestSlide = useCallback(() => {
+  const snapToSlide = useCallback((targetIndex?: number) => {
     if (!viewportWidth || !slides.length) return;
 
     recenterSlides();
 
     const currentTrackX = trackX.get();
-    const closestIndex = findClosestSlideIndex(currentTrackX);
+    const snapIndex = targetIndex ?? findClosestSlideIndex(currentTrackX);
     const closestCenter =
-      offsetsRef.current[closestIndex] + currentTrackX + slideWidth / 2;
+      offsetsRef.current[snapIndex] + currentTrackX + slideWidth / 2;
     const centeredTrackX = currentTrackX + viewportWidth / 2 - closestCenter;
 
     setActiveIndex((currentIndex) =>
-      currentIndex === closestIndex ? currentIndex : closestIndex,
+      currentIndex === snapIndex ? currentIndex : snapIndex,
     );
     autoplayControlsRef.current?.stop();
 
@@ -340,11 +364,11 @@ export default function StoryCarousel({ stories }: Props) {
         onUpdate: recenterSlides,
         onComplete: () => {
           recenterSlides();
-          snapToClosestSlide();
+          snapToSlide();
         },
       });
     },
-    [recenterSlides, shouldReduceMotion, slideStride, snapToClosestSlide, trackX],
+    [recenterSlides, shouldReduceMotion, slideStride, snapToSlide, trackX],
   );
 
   const clearAutoplayTimer = useCallback(() => {
@@ -439,10 +463,18 @@ export default function StoryCarousel({ stories }: Props) {
 
   const handlePanStart = () => {
     shouldSuppressClickRef.current = false;
+    dragStartIndexRef.current = findClosestSlideIndex();
     pauseAutoplay();
   };
 
   const handlePanEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const isMobile = viewportWidth < 640;
+    const shouldSnapToAdjacent =
+      isMobile && Math.abs(info.offset.x) > MOBILE_SNAP_THRESHOLD;
+    const adjacentIndex = shouldSnapToAdjacent
+      ? findAdjacentSlideIndex(dragStartIndexRef.current, info.offset.x < 0 ? 1 : -1)
+      : undefined;
+
     if (Math.abs(info.offset.x) > DRAG_CLICK_THRESHOLD) {
       shouldSuppressClickRef.current = true;
       window.setTimeout(() => {
@@ -450,7 +482,7 @@ export default function StoryCarousel({ stories }: Props) {
       }, 100);
     }
 
-    snapToClosestSlide();
+    snapToSlide(adjacentIndex);
     resumeAutoplay();
     resetAutoplayTimer();
   };
