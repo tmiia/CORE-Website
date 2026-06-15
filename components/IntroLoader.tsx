@@ -45,9 +45,9 @@ export default function IntroLoader() {
         <motion.div
           className="fixed inset-0 z-999 flex items-center justify-center bg-linear-59 from-light-orange to-dark-orange"
           aria-hidden="true"
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: shouldReduceMotion ? 0.2 : 0.7, ease: "easeInOut" }}
+          initial={{ clipPath: "inset(0% 0% 0% 0%)" }}
+          exit={{ clipPath: "inset(0% 0% 100% 0%)" }}
+          transition={{ duration: shouldReduceMotion ? 0.2 : 0.6, ease: "easeOut" }}
         >
           <motion.svg
             width="73"
