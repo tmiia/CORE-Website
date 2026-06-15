@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "@/styles/globals.css";
 import Header from "@/components/Header";
+import IntroLoader from "@/components/IntroLoader";
 import Image from "next/image";
 
 const anonymousPro = localFont({
@@ -43,6 +44,7 @@ export default function SiteLayout({
     <div
       className={`${anonymousPro.variable} ${monigue.variable} min-h-screen flex flex-col antialiased bg-linear-59 from-light-orange to-dark-orange`}
     >
+      <IntroLoader />
       <Header />
       {children}
       <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-foreground p-1">
