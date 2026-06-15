@@ -341,7 +341,7 @@ export default function ProjectModal({ topics, className }: ProjectModalProps) {
               </motion.button>
 
               <motion.div
-                className="flex min-h-dvh flex-col px-5 pb-10 pt-20 sm:px-8 sm:pt-24 md:px-12"
+                className="relative h-dvh max-h-dvh px-5 pb-10 pt-20 sm:px-8 sm:pt-24 md:px-12"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: isContentVisible ? 1 : 0 }}
                 exit={{ opacity: 0 }}
@@ -351,7 +351,7 @@ export default function ProjectModal({ topics, className }: ProjectModalProps) {
                   ease: "easeOut",
                 }}
               >
-                <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-2 text-center">
+                <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center gap-1 text-center sm:gap-2">
                   {topics.map((topic, index) => {
                     const isActive = index === activeIndex;
 
@@ -360,7 +360,7 @@ export default function ProjectModal({ topics, className }: ProjectModalProps) {
                         key={topic._id}
                         type="button"
                         id={isActive ? "project-modal-title" : undefined}
-                        className={`font-monigue text-2xl uppercase leading-none transition-opacity focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#171717] sm:text-3xl md:text-4xl ${
+                        className={`font-monigue text-[clamp(1.5rem,5vmin,2.25rem)] uppercase leading-none transition-opacity focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#171717] md:text-4xl ${
                           isActive ? "opacity-100" : "opacity-40 hover:opacity-60"
                         }`}
                         aria-current={isActive ? "true" : undefined}
@@ -383,7 +383,7 @@ export default function ProjectModal({ topics, className }: ProjectModalProps) {
                       >
                         {topic.title}
                         {isActive && topic.subtitle && (
-                          <span className="mt-2 block font-anonymous text-xs font-bold normal-case leading-tight sm:text-sm">
+                          <span className="mt-1 block font-anonymous text-[clamp(0.6875rem,1.8vmin,0.875rem)] font-bold normal-case leading-tight sm:mt-2">
                             [{topic.subtitle}]
                           </span>
                         )}
@@ -392,18 +392,20 @@ export default function ProjectModal({ topics, className }: ProjectModalProps) {
                   })}
                 </div>
 
-                <AnimatePresence mode="wait">
-                  <motion.p
-                    key={activeTopic?._id}
-                    className="m-auto max-w-170 -translate-y-1/2 px-1 text-center font-anonymous text-base leading-snug text-[#171717] sm:text-lg md:text-xl"
-                    initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -14 }}
-                    transition={{ duration: shouldReduceMotion ? 0.01 : 0.35, ease: "easeOut" }}
-                  >
-                    {activeTopic?.body}
-                  </motion.p>
-                </AnimatePresence>
+                <div className="absolute inset-x-5 top-[max(50%,calc(clamp(4.75rem,14dvh,6rem)+clamp(6rem,18dvh,9rem)))] z-0 flex -translate-y-1/2 justify-center sm:inset-x-8 md:inset-x-12">
+                  <AnimatePresence mode="wait">
+                    <motion.p
+                      key={activeTopic?._id}
+                      className="max-h-[min(42dvh,20rem)] max-w-170 overflow-y-auto px-1 text-center font-anonymous text-[clamp(0.875rem,2.7vmin,1.25rem)] leading-snug text-[#171717]"
+                      initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 14 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -14 }}
+                      transition={{ duration: shouldReduceMotion ? 0.01 : 0.35, ease: "easeOut" }}
+                    >
+                      {activeTopic?.body}
+                    </motion.p>
+                  </AnimatePresence>
+                </div>
               </motion.div>
             </div>
           </motion.div>

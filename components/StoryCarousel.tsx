@@ -44,7 +44,8 @@ const AUTOPLAY_INTERVAL = 2500;
 const INACTIVE_OPACITY = 0.7;
 const ACTIVE_SCALE = 1.08;
 const MAX_SLIDE_WIDTH = 620;
-const MIN_SLIDE_WIDTH = 288;
+const MIN_SLIDE_WIDTH = 140;
+const SLIDE_DETAILS_HEIGHT = 104;
 const MOBILE_SLIDE_GAP = 24;
 const TABLET_SLIDE_GAP = 40;
 const DESKTOP_SLIDE_GAP = 64;
@@ -112,25 +113,25 @@ function StorySlide({
           >
             {slide.story.description &&
               (<>
-                <div className="grid grid-cols-2 gap-x-4 mt-4 px-1">
-                  <h3 className="font-anonymous font-bold text-background text-xl uppercase leading-tight text-right">
+                <div className="mt-2 grid grid-cols-2 gap-x-4 px-1 sm:mt-3 lg:mt-4">
+                  <h3 className="font-anonymous text-[clamp(0.875rem,2.4vmin,1.25rem)] font-bold uppercase leading-tight text-background text-right">
                     {slide.story.origin}
                   </h3>
-                  <h3 className="font-anonymous text-background text-xl uppercase leading-tight text-left">
+                  <h3 className="font-anonymous text-[clamp(0.875rem,2.4vmin,1.25rem)] uppercase leading-tight text-background text-left">
                     {slide.story.birthYear}
                   </h3>
                 </div>
 
                 <div className="mt-1 px-1">
-                  <p className="font-anonymous text-background text-sm uppercase leading-tight text-center mx-auto max-w-88">
+                  <p className="mx-auto max-w-88 text-center font-anonymous text-[clamp(0.6875rem,1.7vmin,0.875rem)] uppercase leading-tight text-background">
                     {slide.story.description}
                   </p>
                 </div>
               </>)}
 
             {storyPath && (
-              <div className="mt-5 px-1 text-center">
-                <span className="font-anonymous text-background text-sm uppercase tracking-wide transition-opacity group-hover:opacity-60">
+              <div className="mt-3 px-1 text-center sm:mt-4 lg:mt-5">
+                <span className="font-anonymous text-[clamp(0.6875rem,1.7vmin,0.875rem)] uppercase tracking-wide text-background transition-opacity group-hover:opacity-60">
                   [Lire l&apos;histoire -&gt;]
                 </span>
               </div>
@@ -143,7 +144,7 @@ function StorySlide({
 
   return (
     <motion.div
-      className="absolute left-0 top-0 select-none"
+      className="absolute left-0 top-0 origin-top select-none"
       role="listitem"
       aria-roledescription="slide"
       aria-label={`${slide.story.title}, ${storyPosition} sur ${totalStories}`}
@@ -180,18 +181,28 @@ export default function StoryCarousel({ stories }: Props) {
   const isPausedRef = useRef(false);
   const shouldReduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
-  const [viewportWidth, setViewportWidth] = useState(0);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const trackX = useMotionValue(0);
+  const viewportWidth = viewportSize.width;
+  const viewportHeight = viewportSize.height;
 
   const slides = useMemo<CarouselSlide[]>(
     () => [...stories, ...stories].map((story, cloneIndex) => ({ story, cloneIndex })),
     [stories],
   );
 
-  const slideWidth =
-    viewportWidth > 0
-      ? Math.min(MAX_SLIDE_WIDTH, Math.max(MIN_SLIDE_WIDTH, viewportWidth * 0.82))
-      : MAX_SLIDE_WIDTH;
+  const slideWidth = (() => {
+    if (!viewportWidth || !viewportHeight) return MAX_SLIDE_WIDTH;
+
+    const widthFromViewport = viewportWidth * 0.82;
+    const availableImageHeight = Math.max(56, viewportHeight / ACTIVE_SCALE - SLIDE_DETAILS_HEIGHT);
+    const widthFromHeight = availableImageHeight * (16 / 9);
+
+    return Math.min(
+      MAX_SLIDE_WIDTH,
+      Math.max(MIN_SLIDE_WIDTH, Math.min(widthFromViewport, widthFromHeight)),
+    );
+  })();
   const slideGap =
     viewportWidth < 640
       ? MOBILE_SLIDE_GAP
@@ -333,7 +344,13 @@ export default function StoryCarousel({ stories }: Props) {
     if (!viewport) return;
 
     const updateSize = () => {
-      setViewportWidth(viewport.getBoundingClientRect().width);
+      const { width, height } = viewport.getBoundingClientRect();
+
+      setViewportSize((currentSize) =>
+        currentSize.width === width && currentSize.height === height
+          ? currentSize
+          : { width, height },
+      );
     };
 
     updateSize();
@@ -412,7 +429,7 @@ export default function StoryCarousel({ stories }: Props) {
       aria-label="Carousel des histoires"
       aria-roledescription="carousel"
       tabIndex={0}
-      className="relative h-[430px] w-full touch-pan-y focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background sm:h-[540px] lg:h-[680px]"
+      className="relative min-h-0 w-full flex-1 touch-pan-y focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background"
       onFocus={pauseAutoplay}
       onBlur={resumeAutoplay}
       onKeyDown={handleKeyDown}
