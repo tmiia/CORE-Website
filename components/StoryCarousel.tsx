@@ -429,7 +429,7 @@ export default function StoryCarousel({ stories }: Props) {
       aria-label="Carousel des histoires"
       aria-roledescription="carousel"
       tabIndex={0}
-      className="relative min-h-0 w-full flex-1 touch-pan-y focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background"
+      className="relative min-h-0 w-full flex-1 touch-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background"
       onFocus={pauseAutoplay}
       onBlur={resumeAutoplay}
       onKeyDown={handleKeyDown}
