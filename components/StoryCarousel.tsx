@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import Link from "next/link";
 import { urlForImage } from "@/sanity/lib/image";
@@ -49,6 +50,7 @@ const SLIDE_DETAILS_HEIGHT = 104;
 const MOBILE_SLIDE_GAP = 24;
 const TABLET_SLIDE_GAP = 40;
 const DESKTOP_SLIDE_GAP = 64;
+const DRAG_CLICK_THRESHOLD = 6;
 
 type CarouselSlide = {
   story: Story;
@@ -63,6 +65,7 @@ type SlideProps = {
   trackX: MotionValue<number>;
   slideWidth: number;
   totalStories: number;
+  onSlideClick: (event: ReactMouseEvent<HTMLAnchorElement>) => void;
 };
 
 function StorySlide({
@@ -73,6 +76,7 @@ function StorySlide({
   trackX,
   slideWidth,
   totalStories,
+  onSlideClick,
 }: SlideProps) {
   const isActive = index === activeIndex;
   const shouldReduceMotion = useReducedMotion();
@@ -160,9 +164,11 @@ function StorySlide({
       {storyPath ? (
         <Link
           href={`/stories/${storyPath}`}
+          draggable={false}
           tabIndex={isActive ? 0 : -1}
           className="group block cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background"
           aria-label={`Lire l'histoire ${slide.story.title}`}
+          onClick={onSlideClick}
         >
           {slideContent}
         </Link>
@@ -178,6 +184,8 @@ export default function StoryCarousel({ stories }: Props) {
   const offsetsRef = useRef<number[]>([]);
   const slideMotionValuesRef = useRef<MotionValue<number>[]>([]);
   const autoplayControlsRef = useRef<AnimationPlaybackControls | null>(null);
+  const autoplayIntervalRef = useRef<number | null>(null);
+  const shouldSuppressClickRef = useRef(false);
   const isPausedRef = useRef(false);
   const shouldReduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -339,6 +347,31 @@ export default function StoryCarousel({ stories }: Props) {
     [recenterSlides, shouldReduceMotion, slideStride, snapToClosestSlide, trackX],
   );
 
+  const clearAutoplayTimer = useCallback(() => {
+    if (autoplayIntervalRef.current === null) return;
+
+    window.clearInterval(autoplayIntervalRef.current);
+    autoplayIntervalRef.current = null;
+  }, []);
+
+  const startAutoplayTimer = useCallback(() => {
+    clearAutoplayTimer();
+
+    if (!slides.length || !viewportWidth || shouldReduceMotion) return;
+
+    autoplayIntervalRef.current = window.setInterval(() => {
+      if (!isPausedRef.current) {
+        animateBySlide(-1);
+      }
+    }, AUTOPLAY_INTERVAL);
+  }, [
+    animateBySlide,
+    clearAutoplayTimer,
+    shouldReduceMotion,
+    slides.length,
+    viewportWidth,
+  ]);
+
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
@@ -374,19 +407,13 @@ export default function StoryCarousel({ stories }: Props) {
   }, [recenterSlides, slideStride, slideWidth, slides, syncOffsets, trackX, viewportWidth]);
 
   useEffect(() => {
-    if (!slides.length || !viewportWidth || shouldReduceMotion) return;
-
-    const interval = window.setInterval(() => {
-      if (!isPausedRef.current) {
-        animateBySlide(-1);
-      }
-    }, AUTOPLAY_INTERVAL);
+    startAutoplayTimer();
 
     return () => {
-      window.clearInterval(interval);
+      clearAutoplayTimer();
       autoplayControlsRef.current?.stop();
     };
-  }, [animateBySlide, shouldReduceMotion, slides.length, viewportWidth]);
+  }, [clearAutoplayTimer, startAutoplayTimer]);
 
   const pauseAutoplay = () => {
     isPausedRef.current = true;
@@ -397,18 +424,43 @@ export default function StoryCarousel({ stories }: Props) {
     isPausedRef.current = false;
   };
 
+  const resetAutoplayTimer = () => {
+    startAutoplayTimer();
+  };
+
   const handlePan = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (Math.abs(info.offset.x) > DRAG_CLICK_THRESHOLD) {
+      shouldSuppressClickRef.current = true;
+    }
+
     trackX.set(trackX.get() + info.delta.x);
     recenterSlides();
   };
 
   const handlePanStart = () => {
+    shouldSuppressClickRef.current = false;
     pauseAutoplay();
   };
 
-  const handlePanEnd = () => {
+  const handlePanEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (Math.abs(info.offset.x) > DRAG_CLICK_THRESHOLD) {
+      shouldSuppressClickRef.current = true;
+      window.setTimeout(() => {
+        shouldSuppressClickRef.current = false;
+      }, 100);
+    }
+
     snapToClosestSlide();
     resumeAutoplay();
+    resetAutoplayTimer();
+  };
+
+  const handleSlideClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (!shouldSuppressClickRef.current) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    shouldSuppressClickRef.current = false;
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -438,9 +490,13 @@ export default function StoryCarousel({ stories }: Props) {
         className="relative h-full cursor-grab active:cursor-grabbing"
         role="list"
         aria-live="polite"
-        onPan={handlePan}
-        onPanStart={handlePanStart}
-        onPanEnd={handlePanEnd}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0}
+        dragMomentum={false}
+        onDrag={handlePan}
+        onDragStart={handlePanStart}
+        onDragEnd={handlePanEnd}
       >
         {slides.map((slide, index) => (
           <StorySlide
@@ -452,6 +508,7 @@ export default function StoryCarousel({ stories }: Props) {
             trackX={trackX}
             slideWidth={slideWidth}
             totalStories={stories.length}
+            onSlideClick={handleSlideClick}
           />
         ))}
       </motion.div>
