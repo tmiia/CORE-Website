@@ -20,16 +20,36 @@ const VALUE_COLS = [
 ];
 
 /**
- * 02 NOTIONS CLÉS, an index card: an opaque black sheet that slides over the
- * previous section (wrapped in StickyUnder), at least one screen tall so it
- * covers it entirely. Labels on the left, values large, dotted rules between
- * rows (the installation's separator).
+ * An index card: an opaque black sheet that slides over the previous section
+ * (wrapped in StickyUnder), at least one screen tall so it covers it entirely.
+ * Optional intro paragraphs, then labels on the left, values large, dotted
+ * rules between rows (the installation's separator). Genre page: NOTIONS CLÉS;
+ * project page: the work's label (cartel).
  */
-export default function NotionsSheet({ index, rows }: { index: string; rows: SheetRow[] }) {
+export default function NotionsSheet({
+  index,
+  label = "NOTIONS CLÉS",
+  intro = [],
+  rows,
+}: {
+  index: string;
+  label?: string;
+  intro?: string[];
+  rows: SheetRow[];
+}) {
   return (
     <section className="relative z-10 flex min-h-svh flex-col border-t border-white bg-black shadow-[0_-28px_56px_rgba(0,0,0,0.85)]">
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-10 pt-[max(4.5rem,calc(env(safe-area-inset-top)+3.5rem))] sm:px-8 sm:pt-24">
-        <SectionTitle index={index} label="NOTIONS CLÉS" />
+        <SectionTitle index={index} label={label} />
+        {intro.length > 0 && (
+          <div className="mt-8 grid grid-cols-4 gap-x-3 gap-y-5 font-anonymous text-[clamp(1rem,4.2vw,1.15rem)] normal-case leading-[1.7] tracking-normal text-white/90 lg:grid-cols-12 lg:gap-x-6">
+            {intro.map((text, i) => (
+              <p key={i} className={`${i % 2 ? "col-start-2 col-span-3 lg:col-start-6" : "col-span-4 lg:col-start-4"} lg:col-span-6`}>
+                {text}
+              </p>
+            ))}
+          </div>
+        )}
         <dl className="mt-8 grid grid-cols-4 gap-x-3 border-b-2 border-dotted border-white/50 lg:grid-cols-12 lg:gap-x-6">
           {rows.map((row, i) => {
             const items = splitList(row.value);

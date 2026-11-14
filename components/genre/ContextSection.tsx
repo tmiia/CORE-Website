@@ -51,16 +51,21 @@ const isText = (run: ContextRun): run is { text: string } => "text" in run;
  */
 export default function ContextSection({
   index,
+  label = "LE CONTEXTE",
   meta,
   paragraphs,
   archives,
   alt,
+  variant = "body",
 }: {
   index: string;
+  label?: string;
   meta?: string;
   paragraphs: ContextParagraph[];
   archives: ContextArchive[];
   alt: string;
+  /** body: reading text (Anonymous Pro). statement: a few large lines (VCR). */
+  variant?: "body" | "statement";
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -82,9 +87,12 @@ export default function ContextSection({
   const spanVh = BUDGET.lead + typeVh + archives.length * BUDGET.perArchive + BUDGET.hold;
   // Long texts get a smaller size so they still fit on a phone screen.
   const textSize =
-    total > 560
-      ? "text-[clamp(0.95rem,3.9vw,1.15rem)] leading-[1.65]"
-      : "text-[clamp(1.05rem,4.4vw,1.3rem)] leading-[1.7]";
+    variant === "statement"
+      ? "font-vcr uppercase tracking-[0.04em] text-[clamp(1.35rem,6vw,2.4rem)] leading-[1.4]"
+      : total > 560
+        ? "font-anonymous normal-case tracking-normal text-[clamp(0.95rem,3.9vw,1.15rem)] leading-[1.65]"
+        : "font-anonymous normal-case tracking-normal text-[clamp(1.05rem,4.4vw,1.3rem)] leading-[1.7]";
+  const textWidth = variant === "statement" ? "lg:w-[72%]" : "lg:w-[52%]";
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -193,7 +201,7 @@ export default function ContextSection({
 
   const header = (
     <div className="flex flex-col gap-3">
-      <SectionTitle index={index} label="LE CONTEXTE" />
+      <SectionTitle index={index} label={label} />
       {meta && <p className="text-[clamp(0.8rem,3.4vw,0.95rem)] text-white/70">▮ {meta}</p>}
     </div>
   );
@@ -282,9 +290,7 @@ export default function ContextSection({
       <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:px-8 sm:py-20">
         {header}
         {srText}
-        <div
-          className={`mt-6 flex max-w-[38em] flex-col gap-5 font-anonymous normal-case tracking-normal ${textSize}`}
-        >
+        <div className={`mt-6 flex max-w-[38em] flex-col gap-5 ${textSize}`}>
           {visualText(false)}
         </div>
         {archives.length > 0 && (
@@ -319,11 +325,8 @@ export default function ContextSection({
           <div className="relative mt-6 flex flex-1 flex-col justify-center-safe pb-[clamp(2rem,9svh,5rem)]">
             {/* Text block + the pile laid on it (siblings: dimming the text
                 must not dim the prints). */}
-            <div className="relative lg:w-[52%]">
-              <div
-                ref={textRef}
-                className={`context-text flex flex-col gap-5 font-anonymous normal-case tracking-normal select-none ${textSize}`}
-              >
+            <div className={`relative ${textWidth}`}>
+              <div ref={textRef} className={`context-text flex flex-col gap-5 select-none ${textSize}`}>
                 {visualText(true)}
               </div>
 
@@ -362,7 +365,7 @@ export default function ContextSection({
 
 /** One archive as a print: white border, the image (or muted video loop) in
  * greyscale with scanlines, and a caption strip in the bottom margin. */
-function ArchivePrint({
+export function ArchivePrint({
   archive: a,
   index,
   alt,
