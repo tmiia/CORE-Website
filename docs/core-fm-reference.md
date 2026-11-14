@@ -417,3 +417,18 @@ Ordre de la page : héros → 01 LE CONTEXTE → 02 NOTIONS CLÉS → 03 POUR AL
 Structure retenue. À venir : entre NOTIONS CLÉS et POUR ALLER PLUS LOIN, une section ÉMISSION (la vidéo du genre et son script), quand elles seront prêtes.
 
 Dev : après une écriture ratée (disque plein), le serveur de dev a plusieurs fois gardé une ancienne version de `globals.css`. Si un style ne s'applique pas, modifier le fichier à nouveau ou relancer `npm run dev`.
+
+### Étape 14 : page projet (2026-11-14)
+
+Route `/projet` (`app/(site)/projet/page.tsx`), liée depuis le menu burger. Première version, **texte à relire par l'équipe** : tout le contenu est dans `lib/experience/project.ts` (comme le script de l'intro), à passer dans Sanity une fois validé.
+
+Ordre : héros → 01 POURQUOI → 02 LE CONSTAT → 03 SE RAPPELER → 04 L'INSTALLATION → 05 PROCHAINE DIFFUSION → CHOISIS UN GENRE → fin.
+
+- **Héros** (`components/project/ProjectHero.tsx`) : la vague de la scène en haut, « INSTALLATION SONORE INTERACTIVE », titre CORE.FM déchiffré, chapô, puis la prochaine diffusion (dates · ville). La vague appartient au héros : quand moins de 40 % du héros est à l'écran, la page envoie à la scène un repère genre sans modèle (`QUIET`), donc la vague s'efface comme sur une page genre ; elle revient en remontant.
+- **Chapitres** (`CHAPTERS`) : barre de titre, phrase-clé en grand déchiffrée à l'arrivée à l'écran (`components/project/Statement.tsx`, VCR monospace donc pas de reflow), puis le texte sur la grille (colonnes alternées).
+- **02 Le constat** : encart `SignalMixup` façon panneau HUD, « IDENTIFICATION DU GENRE » : SHATTA se déchiffre puis est barré (✕ NON), puis BOUYON se déchiffre (▮ OUI), avec sa fréquence, son lieu et son année tirés de l'installation. Joue une fois ; sans JS ou en `reduced-motion`, état final.
+- **03 Se rappeler** : le manifeste, même mécanique que le contexte des pages genre (`ContextSection`, variante `statement` : VCR en grand), épinglé et tapé au scroll.
+- **04 L'installation** : le cartel de l'œuvre, sur la feuille qui glisse par-dessus le manifeste (`NotionsSheet` avec `label` et `intro`). Étiquette « TITRE » et non « ŒUVRE » : la police VCR n'a pas le glyphe Œ.
+- **05 Prochaine diffusion** : Recto VRso, Le Quarante, Laval, du 19 au 22 novembre 2026. Le titre et la phrase suivent la date (heure de Paris) : PROCHAINE DIFFUSION / EN DIRECT / DIFFUSÉ, « sera exposée / est exposée en ce moment / a été exposée ». Horaires (10 h – 17 h) et entrée libre : fiche Laval Tourisme, à vérifier sur le programme du festival.
+- **Images** : chaque chapitre (`images`) et le manifeste (`REMEMBER.images`) acceptent des photos, posées comme les tirages d'archives (pile sur le manifeste, tirages inclinés sous les chapitres). Aucune pour l'instant : les photos de l'exposition viendront après le festival.
+- `components/genre/FrequencyList.tsx` : la liste des genres en fréquences, extraite de la page genre (CHANGER DE FRÉQUENCE) et réutilisée ici (CHOISIS UN GENRE).
