@@ -12,7 +12,7 @@ import {
   type Texture,
   Vector3,
 } from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { createGltfLoader } from "../gltfLoader";
 import { stageCues } from "../stageCues";
 
 export type LogoMode = "tilt" | "spin";
@@ -158,7 +158,7 @@ export class LogoLayer {
   }
 
   async load(url: string, onProgress?: (p: number) => void): Promise<void> {
-    const gltf = await new GLTFLoader().loadAsync(url, (e) => {
+    const gltf = await createGltfLoader().loadAsync(url, (e) => {
       if (e.lengthComputable && e.total > 0) onProgress?.(e.loaded / e.total);
     });
     if (this.disposed) return;
