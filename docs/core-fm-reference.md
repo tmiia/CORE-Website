@@ -374,13 +374,13 @@ Les pages `/stories/<slug>` passent à la DA de la refonte : noir et blanc, VCR 
 ### Étape 10 : HOLD plus bas, choix du son (2026-11-14)
 
 - Bouton HOLD moins haut (`leading-none`, `py-3`) : 53 px sur mobile au lieu d'environ 72.
-- Sous la consigne, deux boutons discrets « AVEC SON » / « SANS SON » (`aria-pressed`, ▮ sur le choix actif). Choix mémorisé sur l'appareil (`localStorage`, clé `corefm-sound`, avec son par défaut) : `lib/experience/sound.ts`.
+- Sous la consigne, deux boutons discrets « AVEC SON » / « SANS SON » (`aria-pressed`, ▮ sur le choix actif). Choix mémorisé sur l'appareil (`localStorage`, clé `corefm-sound`, **sans son par défaut** depuis l'étape 15) : `lib/experience/sound.ts`.
 - Tout l'audio passe par une sortie commune (`audioOutput()` dans `lib/experience/hum.ts`), coupée en fondu de 50 ms quand le son est désactivé. La voix de l'intro devra s'y brancher aussi.
 - Choisir « AVEC SON » est un geste : il débloque l'audio (`unlockAudio()`), donc le premier hold au doigt a déjà son bourdonnement (avant, il restait muet, voir étape 6).
 
 ### Étape 11 : texte de l'intro (2026-11-14)
 
-- `lib/experience/introScript.ts` : le texte provisoire est remplacé par la narration définitive, au tutoiement comme le reste du site, découpée en 8 sous-titres aux pauses naturelles (39 à 76 caractères, 3 lignes au plus sur téléphone).
+- `lib/experience/introScript.ts` : le texte provisoire est remplacé par la narration définitive, au tutoiement comme le reste du site, découpée en 8 sous-titres aux pauses naturelles (réduite à 2 à l'étape 15) (39 à 76 caractères, 3 lignes au plus sur téléphone).
 - Durée avec le timing automatique (15 car./s) : environ 41 s. Avec la voix enregistrée, les temps viendront de l'enregistrement.
 
 ### Étape 12 : performances mobile (2026-11-14)
@@ -432,3 +432,8 @@ Ordre : héros → 01 POURQUOI → 02 LE CONSTAT → 03 SE RAPPELER → 04 L'INS
 - **05 Prochaine diffusion** : Recto VRso, Le Quarante, Laval, du 19 au 22 novembre 2026. Le titre et la phrase suivent la date (heure de Paris) : PROCHAINE DIFFUSION / EN DIRECT / DIFFUSÉ, « sera exposée / est exposée en ce moment / a été exposée ». Horaires (10 h – 17 h) et entrée libre : fiche Laval Tourisme, à vérifier sur le programme du festival.
 - **Images** : chaque chapitre (`images`) et le manifeste (`REMEMBER.images`) acceptent des photos, posées comme les tirages d'archives (pile sur le manifeste, tirages inclinés sous les chapitres). Aucune pour l'instant : les photos de l'exposition viendront après le festival.
 - `components/genre/FrequencyList.tsx` : la liste des genres en fréquences, extraite de la page genre (CHANGER DE FRÉQUENCE) et réutilisée ici (CHOISIS UN GENRE).
+
+### Étape 15 : intro courte, sans son par défaut (2026-11-14)
+
+- **Intro** (`INTRO_LINES`) : seulement les 2 premiers sous-titres, « Bienvenue dans les archives de CORE.FM, / la radio qui te fait redécouvrir l'histoire des musiques noires populaires. » (environ 9 s). Le reste (les genres, leurs origines oubliées, le but de l'installation) est raconté sur la page projet.
+- **Son coupé par défaut** (`SOUND_DEFAULT` dans `lib/experience/sound.ts`) : sur l'écran HOLD, « SANS SON » est sélectionné ; c'est au visiteur de cliquer « AVEC SON ». Le navigateur ne joue rien avant un geste de toute façon, et ce clic débloque l'audio. Un choix déjà enregistré sur l'appareil (« on » ou « off ») est respecté.

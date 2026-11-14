@@ -6,7 +6,7 @@ import { EXPERIENCE } from "@/lib/experience/config";
 import { hapticSuccess, hapticTick } from "@/lib/experience/haptics";
 import { Hum, unlockAudio } from "@/lib/experience/hum";
 import { scrambleText } from "@/lib/experience/scramble";
-import { onSoundChange, setSoundEnabled, soundEnabled } from "@/lib/experience/sound";
+import { onSoundChange, setSoundEnabled, SOUND_DEFAULT, soundEnabled } from "@/lib/experience/sound";
 
 const LABEL = "HOLD";
 const HINT = "MAINTIENS POUR CALER LE SIGNAL";
@@ -28,7 +28,7 @@ const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
  */
 export default function HoldButton({ onComplete }: { onComplete: () => void }) {
   const [p, setP] = useState(0);
-  const sound = useSyncExternalStore(onSoundChange, soundEnabled, () => true);
+  const sound = useSyncExternalStore(onSoundChange, soundEnabled, () => SOUND_DEFAULT);
   const holding = useRef(false);
   const hum = useRef<Hum | null>(null);
   const hintRef = useRef<HTMLParagraphElement>(null);

@@ -1,23 +1,27 @@
 /**
  * Sound on/off, chosen on the HOLD screen and remembered on this device. All
  * the site's audio (the hum, later the voice-over) goes through one output
- * that follows it (audioOutput() in hum.ts). Default: on.
+ * that follows it (audioOutput() in hum.ts). Default: off. The browser won't
+ * play anything before a click anyway, so turning it on is the visitor's
+ * click ("AVEC SON"), which also unlocks the audio.
  */
 const KEY = "corefm-sound";
+export const SOUND_DEFAULT = false;
 
 let enabled: boolean | null = null; // read lazily: localStorage is client-only
 const listeners = new Set<() => void>();
 
 function read(): boolean {
   try {
-    return window.localStorage.getItem(KEY) !== "off";
+    const saved = window.localStorage.getItem(KEY);
+    return saved === null ? SOUND_DEFAULT : saved === "on";
   } catch {
-    return true; // storage blocked (private mode…): default
+    return SOUND_DEFAULT; // storage blocked (private mode…)
   }
 }
 
 export function soundEnabled(): boolean {
-  if (enabled === null) enabled = typeof window === "undefined" ? true : read();
+  if (enabled === null) enabled = typeof window === "undefined" ? SOUND_DEFAULT : read();
   return enabled;
 }
 

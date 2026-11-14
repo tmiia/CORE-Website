@@ -14,15 +14,11 @@ export interface Cue {
   end: number; // s: line leaves the screen
 }
 
+// Kept short: why the project exists (forgotten origins, the installation's
+// aim) is told on the project page (/projet).
 export const INTRO_LINES = [
   "BIENVENUE DANS LES ARCHIVES DE CORE.FM,",
   "LA RADIO QUI TE FAIT REDÉCOUVRIR L'HISTOIRE DES MUSIQUES NOIRES POPULAIRES.",
-  "LE RAP, LE BAILE FUNK, LA TECHNO, LE BOUYON",
-  "SONT DES MUSIQUES TRÈS POPULAIRES AUJOURD'HUI",
-  "ET POURTANT, PARFOIS, ON OUBLIE D'OÙ ELLES VIENNENT.",
-  "ALORS AVEC CETTE INSTALLATION SONORE INTERACTIVE,",
-  "ON A VOULU RAPPELER LES CULTURES QUI SONT DERRIÈRE CES MUSIQUES,",
-  "LEUR HISTOIRE ET LE CONTEXTE SOCIAL OÙ ELLES ONT ÉTÉ CRÉÉES.",
 ];
 
 export const INTRO_TIMING = {
