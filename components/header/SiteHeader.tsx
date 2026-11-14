@@ -30,6 +30,16 @@ export default function SiteHeader() {
     setOpen(false);
   }, [pathname]);
 
+  // Scrolled pages: a black fade behind the header, so REC and the burger
+  // don't sit on top of the text scrolling under them.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [pathname]);
+
   const close = () => {
     setOpen(false);
     buttonRef.current?.focus({ preventScroll: true });
@@ -38,6 +48,12 @@ export default function SiteHeader() {
   return (
     <>
       <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] font-vcr text-[clamp(0.85rem,3.6vw,1.05rem)] uppercase tracking-[0.08em] text-white sm:p-8">
+        <div
+          aria-hidden="true"
+          className={`absolute inset-x-0 top-0 -z-10 h-[calc(100%+1.5rem)] bg-linear-to-b from-black from-55% to-transparent transition-opacity duration-300 ${
+            scrolled && !open ? "opacity-100" : "opacity-0"
+          }`}
+        />
         <RecIndicator live={live} />
         <button
           ref={buttonRef}
