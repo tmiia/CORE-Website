@@ -1,8 +1,7 @@
 /**
- * Intro voice-over, shown as typed subtitles over the wave.
- *
- * PLACEHOLDER TEXT — to be replaced by the real script. Installation tone:
- * French, "tu", uppercase on screen.
+ * Intro voice-over, shown as typed subtitles over the wave: the narration
+ * script, cut into subtitles at its natural pauses (≤ ~3 lines on a phone).
+ * French, "tu" (as everywhere on the site), uppercase on screen.
  *
  * Timing: until the voice is recorded, each line's timing is derived from its
  * length (≈ speech rate). Once the recording exists, `start`/`end` come from it
@@ -16,11 +15,14 @@ export interface Cue {
 }
 
 export const INTRO_LINES = [
-  "FIN DE TRANSMISSION.",
-  "TU VIENS DE RÉGLER CORE.FM, LA RADIO QUI REMONTE LE FIL DES MUSIQUES NOIRES.",
-  "CHAQUE FRÉQUENCE CALÉE RACONTE UNE HISTOIRE : UN LIEU, UNE ANNÉE, DES GENS.",
-  "L'ÉMISSION EST FINIE. ICI, LE SIGNAL CONTINUE.",
-  "CHOISIS UN GENRE. REMONTE LE FIL.",
+  "BIENVENUE DANS LES ARCHIVES DE CORE.FM,",
+  "LA RADIO QUI TE FAIT REDÉCOUVRIR L'HISTOIRE DES MUSIQUES NOIRES POPULAIRES.",
+  "LE RAP, LE BAILE FUNK, LA TECHNO, LE BOUYON",
+  "SONT DES MUSIQUES TRÈS POPULAIRES AUJOURD'HUI",
+  "ET POURTANT, PARFOIS, ON OUBLIE D'OÙ ELLES VIENNENT.",
+  "ALORS AVEC CETTE INSTALLATION SONORE INTERACTIVE,",
+  "ON A VOULU RAPPELER LES CULTURES QUI SONT DERRIÈRE CES MUSIQUES,",
+  "LEUR HISTOIRE ET LE CONTEXTE SOCIAL OÙ ELLES ONT ÉTÉ CRÉÉES.",
 ];
 
 export const INTRO_TIMING = {
