@@ -27,6 +27,9 @@ export const storySchema = defineType({
       title: "Content",
       type: "array",
       of: [{ type: "block" }],
+      // The TRANSMISSION section (the V1 riddle text) is gone from the site.
+      deprecated: { reason: "N'est plus affiché sur le site (section TRANSMISSION retirée)." },
+      hidden: ({ value }) => !value,
     }),
     defineField({
       name: "keyConcepts",
@@ -59,19 +62,34 @@ export const storySchema = defineType({
       ],
     }),
     defineField({
+      // Field name kept (existing documents): items are images or videos now.
       name: "archiveImages",
-      title: "Images d'archives",
+      title: "Archives (images ou vidéos)",
+      description:
+        "Posées les unes sur les autres dans la section Contexte, dans cet ordre. Les images et extraits utilisés dans le clip ont leur place ici.",
       type: "array",
       of: [
         {
           type: "object",
+          // One of the two: an image, or a short video (muted loop).
+          validation: (Rule) =>
+            Rule.custom((value: { image?: unknown; video?: unknown } | undefined) =>
+              value?.image || value?.video ? true : "Ajoute une image ou une vidéo",
+            ),
           fields: [
             defineField({
               name: "image",
               title: "Image",
               type: "image",
               options: { hotspot: true },
-              validation: (Rule) => Rule.required(),
+            }),
+            defineField({
+              name: "video",
+              title: "Vidéo",
+              description:
+                "Extrait court, sans son (joué en boucle). MP4 H.264, 720p max, quelques Mo : il est chargé sur téléphone.",
+              type: "file",
+              options: { accept: "video/mp4,video/webm" },
             }),
             defineField({
               name: "caption",
@@ -89,10 +107,11 @@ export const storySchema = defineType({
               title: "caption",
               subtitle: "source",
               media: "image",
+              video: "video.asset._ref",
             },
-            prepare({ title, subtitle, media }) {
+            prepare({ title, subtitle, media, video }) {
               return {
-                title: title || "Image d'archive",
+                title: title || (video && !media ? "Vidéo d'archive" : "Image d'archive"),
                 subtitle,
                 media,
               };

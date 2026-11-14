@@ -51,7 +51,6 @@ export const storyBySlugQuery = groq`
     slug,
     "path": coalesce(slug.current, _id),
     thumbnail,
-    content,
     keyConcepts[] {
       _key,
       title,
@@ -61,6 +60,7 @@ export const storyBySlugQuery = groq`
       _key,
       image,
       "dimensions": image.asset->metadata.dimensions { width, height },
+      "videoUrl": video.asset->url,
       caption,
       source,
     },
