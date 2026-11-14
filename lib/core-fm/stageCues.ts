@@ -14,11 +14,21 @@ export type LogoCue =
 // menu) — set at module load so nothing flashes before the page's effects run.
 const openingAhead = typeof window !== "undefined" && window.location.pathname === "/";
 
+/** A genre page: its model replaces the wave (see GenreModelLayer). */
+export interface StageGenre {
+  model: string | null; // glb URL (null: a story with no installation model)
+  /** The box the model is fitted into, tracked every frame (scrolls with the page). */
+  anchor: HTMLElement | null;
+  /** Per-band deformation 0..1 and its mean (GhostEq, ticked by the page). */
+  eq: { readonly deform: Readonly<Record<"high" | "mid" | "low", number>>; readonly energy: number };
+}
+
 export const stageCues = {
   dark: openingAhead, // true = no wave, no ASCII field (loading + forge)
   live: !openingAhead, // false = REC idle, burger menu unavailable
   logo: "hidden" as LogoCue,
   forge: 0, // hold progress, 0..1
+  genre: null as StageGenre | null, // null = no genre page (the wave shows)
 };
 
 const listeners = new Set<() => void>();
@@ -45,6 +55,12 @@ export function setLive(live: boolean): void {
 export function setLogoCue(cue: LogoCue): void {
   if (stageCues.logo === cue) return;
   stageCues.logo = cue;
+  notify();
+}
+
+export function setStageGenre(genre: StageGenre | null): void {
+  if (stageCues.genre === genre) return;
+  stageCues.genre = genre;
   notify();
 }
 

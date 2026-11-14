@@ -14,6 +14,7 @@ import {
   type WebGLRenderTarget,
 } from "three";
 import { AsciiPostFx } from "./ascii/AsciiPostFx";
+import { GENRE_FX, GenreModelLayer } from "./genre/GenreModelLayer";
 import { reportLoad } from "./loadProgress";
 import { LogoLayer } from "./logo/LogoLayer";
 import { createStudioEnv } from "./logo/studioEnv";
@@ -67,12 +68,18 @@ export interface BackgroundStageOptions {
   reducedMotion?: boolean;
 }
 
+const NO_DEFORM = { high: 0, mid: 0, low: 0 };
+const mix = (a: number, b: number, k: number) => a + (b - a) * k;
+const lerp = ([a, b]: [number, number], k: number) => a + (b - a) * k;
+
 /**
  * Fixed full-viewport WebGL layer:
- *   RenderPass(wave) → [ASCII] → RenderPass(logo, over the ASCII) → [bloom, vignette]
+ *   RenderPass(wave | genre model) → [ASCII] → RenderPass(logo, over the ASCII) → [bloom, vignette]
  * The wave goes through the ASCII effect (installation look); the chrome logo
  * is drawn on top of it so it stays sharp (LOGO_FX.ascii puts it through the
  * ASCII instead). Bloom then glows both. Sizes itself to its canvas.
+ * On a genre page (stageCues.genre) the wave fades out and the genre's model
+ * turns in the page's hero, deformed by its ghost equalizer.
  */
 export class BackgroundStage {
   readonly renderer: WebGLRenderer;
@@ -80,6 +87,7 @@ export class BackgroundStage {
   readonly wave = new WaveLayer();
   readonly tuner: GhostTuner;
   readonly logo: LogoLayer;
+  readonly genre: GenreModelLayer;
   readonly ascii: AsciiPostFx;
   readonly bloom: BloomEffect;
   readonly vignette: VignetteEffect;
@@ -98,6 +106,10 @@ export class BackgroundStage {
   private readonly reducedMotion: boolean;
   private pixelRatio = 1;
   private presence = stageCues.dark ? 0 : 1; // 0 = dark, 1 = wave + field
+  private page = stageCues.genre ? 1 : 0; // 0 = home (wave), 1 = genre page (model)
+  private toneActive = false; // the genre tone was written last frame
+  private deform: Readonly<Record<"high" | "mid" | "low", number>> = NO_DEFORM;
+  private scrollQueued = false;
   private elapsed = 0;
   private last = 0;
   private raf = 0;
@@ -130,7 +142,14 @@ export class BackgroundStage {
     this.overlay.add(this.logo.chromeRoot); // sharp, over the ASCII
     this.scene.add(this.logo.asciiRoot); // silhouette, turned into glyphs
     this.renderer.localClippingEnabled = true; // chrome sweep-in
-    this.unsubCue = onStageCue(() => this.renderStill());
+    this.genre = new GenreModelLayer(this.renderer);
+    this.scene.add(this.genre.group); // genre pages, turned into glyphs
+    this.unsubCue = onStageCue(() => {
+      // Reduced motion: draw again once the page's model has loaded.
+      const url = stageCues.genre?.model;
+      if (url && this.reducedMotion) void this.genre.preload(url).then(() => this.renderStill());
+      this.renderStill();
+    });
 
     this.ascii = new AsciiPostFx({
       ...SITE_ASCII,
@@ -164,8 +183,12 @@ export class BackgroundStage {
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(canvas);
     document.addEventListener("visibilitychange", this.onVisibility);
+    // Reduced motion: no loop, but the genre model scrolls with its hero.
+    if (this.reducedMotion) window.addEventListener("scroll", this.onScroll, { passive: true });
     this.resize();
     void this.loadAssets();
+    const url = stageCues.genre?.model;
+    if (url) void this.genre.preload(url).then(() => this.renderStill());
   }
 
   /** Logo (by bytes), then shader precompile + one frame: the loader waits on
@@ -221,8 +244,10 @@ export class BackgroundStage {
     this.observer.disconnect();
     this.unsubCue();
     document.removeEventListener("visibilitychange", this.onVisibility);
+    window.removeEventListener("scroll", this.onScroll);
     this.wave.dispose();
     this.logo.dispose();
+    this.genre.dispose();
     this.env.dispose();
     this.ascii.dispose();
     this.composer.dispose();
@@ -250,19 +275,26 @@ export class BackgroundStage {
     // Dark (loading, forge) ↔ main: the wave and the glyph field fade.
     const presence = stageCues.dark ? 0 : 1;
     this.presence = this.running ? ease(this.presence, presence, fx.presenceRate, dt) : presence;
+    // Home ↔ genre page: the wave gives way to the genre's model.
+    const cue = stageCues.genre;
+    const page = cue ? 1 : 0;
+    this.page = this.running ? ease(this.page, page, GENRE_FX.pageRate, dt) : page;
+    if (Math.abs(this.page - page) < 1e-3) this.page = page;
     this.tuner.update(dt);
-    this.wave.setFade(this.presence);
+    this.wave.setFade(this.presence * (1 - this.page));
     this.wave.update(dt, this.elapsed);
 
     // Fitted every frame so the pane's size sliders apply live.
     this.logo.fit(this.camera);
     this.logo.update(dt, this.reducedMotion);
+    this.updateGenre(dt);
 
     // Glyph flicker: the forge settles from chaos to calm as the hold
-    // completes; otherwise it follows the wave's energy.
-    const lerp = ([a, b]: [number, number], k: number) => a + (b - a) * k;
+    // completes; otherwise it follows the wave's energy (the equalizer's on a
+    // genre page).
     const forge = this.logo.forging ? stageCues.forge : -1;
-    const e = forge >= 0 ? forge : this.wave.energy;
+    const eqEnergy = (cue?.eq.energy ?? 0) * this.genre.level;
+    const e = forge >= 0 ? forge : mix(this.wave.energy, eqEnergy, this.page);
     // While the field forms (presence rising), its glyphs flicker harder.
     const forming = forge >= 0 ? 0 : (1 - this.presence) * fx.formingJitter;
     this.ascii.set({
@@ -276,10 +308,56 @@ export class BackgroundStage {
     this.composer.render(dt);
   }
 
+  /**
+   * Genre page: fit the model into the page's hero box (it scrolls), fade it,
+   * and let its equalizer deform the ASCII (TV1 ModelControls mapping). The
+   * tone is only written while a genre page is (or was just) showing, so the
+   * home and the debug pane keep their own values.
+   */
+  private updateGenre(dt: number): void {
+    const cue = stageCues.genre;
+    const g = GENRE_FX;
+    let onScreen = false;
+    let box: DOMRect | null = null;
+    if (cue?.anchor) {
+      const canvas = this.canvas.getBoundingClientRect();
+      const r = cue.anchor.getBoundingClientRect();
+      box = new DOMRect(r.left - canvas.left, r.top - canvas.top, r.width, r.height);
+      onScreen = box.bottom > 0 && box.top < canvas.height && box.width > 0 && box.height > 0;
+    }
+    this.genre.update(dt, cue?.model ?? null, onScreen, this.reducedMotion);
+    if (box) this.genre.fit(this.camera, this.canvas.clientWidth, this.canvas.clientHeight, box);
+
+    if (cue) this.deform = cue.eq.deform; // kept while leaving: it fades with the page
+    const p = this.page;
+    if (p <= 0 && !this.toneActive) return;
+    const d = this.deform;
+    const k = p * this.genre.level; // deformation only once the model shows
+    this.ascii.set({
+      detail: mix(SITE_ASCII.detail, g.detail, p),
+      contrast: mix(SITE_ASCII.contrast, g.contrast, p),
+      weight: mix(SITE_ASCII.weight, lerp(g.weight, d.low), p),
+      quality: mix(SITE_ASCII.quality, lerp(g.quality, d.high), k),
+      warpX: g.warpX * d.low * k,
+      warpY: g.warpY * d.mid * k,
+      tear: (g.tear * d.high + g.glitchIn * this.genre.glitch) * k,
+    });
+    this.toneActive = p > 0;
+  }
+
   /** Reduced motion: frames are only drawn on demand. */
   private renderStill(): void {
     if (!this.running && !this.disposed) this.render(0);
   }
+
+  private readonly onScroll = (): void => {
+    if (this.scrollQueued || !stageCues.genre) return;
+    this.scrollQueued = true;
+    requestAnimationFrame(() => {
+      this.scrollQueued = false;
+      this.renderStill();
+    });
+  };
 
   private resize(): void {
     if (this.disposed) return;

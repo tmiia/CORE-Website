@@ -3,8 +3,10 @@
 import { BlendFunction } from "postprocessing";
 import { Pane } from "tweakpane";
 import { STAGE_FX, type BackgroundStage } from "./BackgroundStage";
+import { GENRE_FX } from "./genre/GenreModelLayer";
+import { EQ_FX, type GhostEq } from "./genre/GhostEq";
 import { LOGO_FX } from "./logo/LogoLayer";
-import { setLogoCue } from "./stageCues";
+import { setLogoCue, stageCues } from "./stageCues";
 import { TUNER_FX } from "./wave/GhostTuner";
 import { DEFAULT_WAVE_PARAMS, WAVE_FX, type WaveParams } from "./wave/WaveLayer";
 
@@ -105,6 +107,42 @@ export function mountDebugPane(stage: BackgroundStage): { dispose(): void } {
   fForge.addBinding(l, "flash", { label: "durée flash (s)", min: 0.05, max: 2, step: 0.05 });
   fForge.addBinding(STAGE_FX, "presenceRate", { label: "fond: vitesse apparition", min: 0.1, max: 6, step: 0.05 });
   fForge.addBinding(STAGE_FX, "formingJitter", { label: "fond: scintillement formation", min: 0, max: 15, step: 0.5 });
+
+  // --- Genre page (model + ghost equalizer) ---
+  const gf = GENRE_FX;
+  const fGenre = pane.addFolder({ title: "Page genre", expanded: Boolean(stageCues.genre) });
+  fGenre.addButton({ title: "Dérégler l'égaliseur" }).on("click", () => {
+    (stageCues.genre?.eq as Partial<GhostEq> | undefined)?.detuneNow?.();
+  });
+  fGenre.addBinding(gf, "size", { label: "taille (% du cadre)", min: 0.2, max: 1.5, step: 0.01 });
+  fGenre.addBinding(gf, "spin", { label: "rotation (rad/s)", min: 0, max: 2, step: 0.01 });
+  fGenre.addBinding(gf, "tilt", { label: "inclinaison (rad)", min: -0.6, max: 0.8, step: 0.01 });
+  fGenre.addBinding(gf, "facing", { label: "face caméra", min: 0, max: 1, step: 0.05 });
+  fGenre.addBinding(gf, "light", { label: "lumière ×", min: 0, max: 3, step: 0.05 });
+  fGenre.addBinding(gf, "env", { label: "reflets ×", min: 0, max: 3, step: 0.05 });
+  const fGenreFx = fGenre.addFolder({ title: "ASCII + déformation", expanded: false });
+  fGenreFx.addBinding(gf, "detail", { label: "détail", min: 0, max: 1, step: 0.01 });
+  fGenreFx.addBinding(gf, "contrast", { label: "contraste", min: 0.2, max: 3, step: 0.05 });
+  fGenreFx.addBinding(gf, "warpX", { label: "GRAVES: ondulation X", min: 0, max: 0.3, step: 0.005 });
+  fGenreFx.addBinding(gf, "warpY", { label: "MÉDIUMS: ondulation Y", min: 0, max: 0.3, step: 0.005 });
+  fGenreFx.addBinding(gf, "tear", { label: "AIGUS: déchirure", min: 0, max: 0.5, step: 0.005 });
+  fGenreFx.addBinding(gf, "glitchIn", { label: "glitch apparition", min: 0, max: 0.5, step: 0.005 });
+  fGenreFx.addBinding(gf, "fadeIn", { label: "apparition (s)", min: 0.1, max: 4, step: 0.05 });
+  fGenreFx.addBinding(gf, "fadeOut", { label: "disparition (s)", min: 0.1, max: 2, step: 0.05 });
+  fGenreFx.addBinding(gf, "pageRate", { label: "wave ↔ modèle (/s)", min: 0.2, max: 6, step: 0.05 });
+  const eqfx = EQ_FX;
+  const fEq = fGenre.addFolder({ title: "égaliseur fantôme", expanded: false });
+  fEq.addBinding(eqfx, "enabled", { label: "actif" });
+  fEq.addBinding(eqfx, "curve", { label: "courbe distance", min: 0.1, max: 2, step: 0.05 });
+  fEq.addBinding(eqfx, "kickGain", { label: "à-coups", min: 0, max: 2, step: 0.05 });
+  fEq.addBinding(eqfx, "omegaMin", { label: "ressort min (rad/s)", min: 0.5, max: 8, step: 0.1 });
+  fEq.addBinding(eqfx, "omegaMax", { label: "ressort max (rad/s)", min: 0.5, max: 8, step: 0.1 });
+  fEq.addBinding(eqfx, "dampingMin", { label: "amortissement min", min: 0.1, max: 1.5, step: 0.01 });
+  fEq.addBinding(eqfx, "dampingMax", { label: "amortissement max", min: 0.1, max: 1.5, step: 0.01 });
+  fEq.addBinding(eqfx, "lockMin", { label: "réglé min (s)", min: 0.5, max: 10, step: 0.1 });
+  fEq.addBinding(eqfx, "lockMax", { label: "réglé max (s)", min: 0.5, max: 10, step: 0.1 });
+  fEq.addBinding(eqfx, "detuneMin", { label: "dérèglement min", min: 0.5, max: 8, step: 0.1 });
+  fEq.addBinding(eqfx, "detuneMax", { label: "dérèglement max", min: 0.5, max: 8, step: 0.1 });
 
   // --- Wave ---
   const waveParams: Record<string, unknown> = { ...DEFAULT_WAVE_PARAMS };
