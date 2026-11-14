@@ -242,7 +242,113 @@ body {
   );
 }
 
+/* Context text: subtitle lines on black (as the intro), padded with shadows
+   rather than padding so the typed part never reflows the text. */
+.context-line {
+  background: #000;
+  box-shadow:
+    0.25em 0 0 #000,
+    -0.25em 0 0 #000;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.context-text {
+  transition: opacity 0.45s ease;
+}
+.context-text[data-dim] {
+  opacity: 0.45;
+}
+
+/* An archive as a print: white border, a caption strip in the bottom margin,
+   the installation's hard shadow (error window). */
+.archive-print {
+  background: #fff;
+  padding: 0.375rem 0.375rem 0.5rem;
+  box-shadow: 5px 5px 0 rgb(0 0 0 / 0.6);
+}
+/* Context section: a pile laid on the text. Each print is centred on the text
+   block (--ax, 50 %), shifted by --dx/--dy (% of its own size), tilted by
+   --r. Lifted (bigger, more tilted, higher, longer shadow) → put down. */
+.archive-photo {
+  --ax: 50%;
+  left: var(--ax);
+  top: 50%;
+  opacity: 0;
+  transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 1.5rem))
+    rotate(calc(var(--r) * 3)) scale(1.12);
+  box-shadow: 14px 18px 0 rgb(0 0 0 / 0.35);
+  pointer-events: none;
+  transition:
+    opacity 0.16s linear,
+    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.archive-photo[data-on] {
+  opacity: 1;
+  transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--r));
+  box-shadow: 5px 5px 0 rgb(0 0 0 / 0.6);
+  pointer-events: auto;
+}
+/* Desktop: the pile sits on the right half of the text column. */
+@media (min-width: 64rem) {
+  .archive-photo {
+    --ax: 62%;
+  }
+}
+
+/* Context: note pointing to a source (superscript, inverted, as the HUD). The
+   ::after widens the touch target without moving the text. */
+.source-note {
+  position: relative;
+  margin-left: 0.15em;
+  padding: 0.05em 0.3em;
+  background: #fff;
+  color: #000;
+  font-family: var(--font-vcr);
+  font-size: 0.62em;
+  letter-spacing: 0.04em;
+  line-height: 0;
+  vertical-align: super;
+  text-decoration: none;
+}
+.source-note::after {
+  content: "";
+  position: absolute;
+  inset: -0.9rem -0.5rem;
+}
+.source-note:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+/* The source a note jumps to blinks inverted, in steps (TV1 alarm rhythm). */
+@keyframes source-target {
+  0%,
+  50% {
+    background: #fff;
+    color: #000;
+  }
+  25%,
+  75%,
+  100% {
+    background: transparent;
+    color: inherit;
+  }
+}
+.source-row:target > a {
+  animation: source-target 1.4s steps(1, end) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .context-text,
+  .archive-photo {
+    transition: none;
+  }
+  .source-row:target > a {
+    animation: none;
+    background: #fff;
+    color: #000;
+  }
   .caret,
   .hint-blink,
   .rec-blink,
