@@ -43,7 +43,7 @@ export default function IntroLoader() {
     <AnimatePresence>
       {isVisible && (
         <motion.div
-          className="fixed inset-0 z-999 flex items-center justify-center bg-linear-59 from-light-orange to-dark-orange"
+          className="fixed inset-0 z-999 flex items-center justify-center bg-page"
           aria-hidden="true"
           initial={{ clipPath: "inset(0% 0% 0% 0%)" }}
           exit={{ clipPath: "inset(0% 0% 100% 0%)" }}

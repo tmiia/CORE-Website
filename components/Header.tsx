@@ -22,6 +22,7 @@ export default async function Header() {
           width={41}
           height={24}
           priority
+          className="invert"
         />
       </Link>
 

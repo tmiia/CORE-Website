@@ -3,24 +3,29 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-page: var(--page);
 
   --color-light-orange: #EB5D10;
   --color-dark-orange: #FC401A;
 
   --font-anonymous: var(--font-anonymous);
   --font-monigue: var(--font-monigue);
+  --font-vcr: var(--font-vcr);
 }
 
 :root {
+  /* Redesign: black page, white text. `--background` stays white because the
+     existing components use `text-background` as "light text". */
+  --page: #000000;
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #ffffff;
 
   --color-light-orange: #EB5D10;
   --color-dark-orange: #A03D0A;
 }
 
 body {
-  background: var(--background);
+  background: var(--page);
   color: var(--foreground);
   font-family: var(--font-sans, Arial, Helvetica, sans-serif);
 }
@@ -42,5 +47,114 @@ body {
   .intro-header {
     transform: none;
     animation: intro-header-in 0.1s ease-out 0.65s forwards;
+  }
+}
+
+/* --- Home experience (installation HUD conventions) --- */
+
+/* Typewriter cursor. */
+.caret {
+  animation: caret-blink 1s steps(1) infinite;
+}
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Hint blink, as on TV1 (.result-hint--send). */
+.hint-blink {
+  animation: hint-blink 1.6s steps(1) infinite;
+}
+@keyframes hint-blink {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  71%,
+  100% {
+    opacity: 0.4;
+  }
+}
+
+/* Camcorder REC dot: on 1 s, off 1 s… sharp, no fade. */
+.rec-blink {
+  animation: rec-blink 1.2s steps(1) infinite;
+}
+@keyframes rec-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Genre menu entrance (~0.3 s): white bar wipes in, the frame opens, labels
+   glitch in (stepped flicker + jolts + red ghost, like TV1's error glitch). */
+@keyframes wipe-x {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes wipe-y {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes glitch-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(3px);
+    filter: drop-shadow(3px 0 0 #ff0026);
+  }
+  30% {
+    opacity: 0.15;
+    transform: translateX(-2px);
+    filter: none;
+  }
+  45% {
+    opacity: 1;
+    transform: skewX(-12deg);
+    filter: drop-shadow(-3px 0 0 #ff0026);
+  }
+  60% {
+    opacity: 0.5;
+    transform: translateX(2px);
+    filter: none;
+  }
+  75%,
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+.wipe-x {
+  animation: wipe-x 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.wipe-y {
+  animation: wipe-y 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) 0.04s both;
+}
+/* steps(1): each keyframe is held, then cut — a flicker, not a fade. */
+.glitch-in {
+  animation: glitch-in 0.28s steps(1, end) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret,
+  .hint-blink,
+  .rec-blink,
+  .wipe-x,
+  .wipe-y,
+  .glitch-in {
+    animation: none;
   }
 }
