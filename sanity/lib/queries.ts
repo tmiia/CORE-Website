@@ -60,6 +60,7 @@ export const storyBySlugQuery = groq`
     archiveImages[] {
       _key,
       image,
+      "dimensions": image.asset->metadata.dimensions { width, height },
       caption,
       source,
     },

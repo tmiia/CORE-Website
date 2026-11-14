@@ -11,6 +11,9 @@
   --font-anonymous: var(--font-anonymous);
   --font-monigue: var(--font-monigue);
   --font-vcr: var(--font-vcr);
+
+  /* Camcorder REC red (header dot, detuned equalizer). */
+  --color-rec: #ff2b2b;
 }
 
 :root {
@@ -146,6 +149,28 @@ body {
 /* steps(1): each keyframe is held, then cut — a flicker, not a fade. */
 .glitch-in {
   animation: glitch-in 0.28s steps(1, end) both;
+}
+
+/* --- Genre pages --- */
+
+/* Section separator: the installation's dotted rule (5px dotted, 70 % white). */
+.section-rule {
+  border-top: 4px dotted rgb(255 255 255 / 0.5);
+}
+
+/* Archive photos: CRT scanlines over the greyscale image. */
+.archive-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0) 0,
+    rgb(0 0 0 / 0) 2px,
+    rgb(0 0 0 / 0.28) 2px,
+    rgb(0 0 0 / 0.28) 3px
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {

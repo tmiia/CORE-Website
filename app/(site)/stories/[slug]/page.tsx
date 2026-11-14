@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -9,8 +10,11 @@ import {
   type PortableTextComponents,
 } from "@portabletext/react";
 import type { SanityImageSource } from "@sanity/image-url";
+import GenreHero from "@/components/genre/GenreHero";
+import SectionTitle from "@/components/genre/SectionTitle";
+import { buildMenu, findInstallationGenre, type StoryItem } from "@/lib/experience/genres";
 import { client } from "@/sanity/lib/client";
-import { allStorySlugsQuery, storyBySlugQuery } from "@/sanity/lib/queries";
+import { allStoriesQuery, allStorySlugsQuery, storyBySlugQuery } from "@/sanity/lib/queries";
 import { urlForImage } from "@/sanity/lib/image";
 
 type PageProps = {
@@ -26,6 +30,7 @@ type KeyConcept = {
 type ArchiveImage = {
   _key: string;
   image?: SanityImageSource;
+  dimensions?: { width: number; height: number };
   caption?: string;
   source?: string;
 };
@@ -69,95 +74,128 @@ type StorySlug = {
   path?: string;
 };
 
-const portableTextComponents: PortableTextComponents = {
+const link: NonNullable<PortableTextComponents["marks"]>["link"] = ({ children, value }) => {
+  const href = typeof value?.href === "string" ? value.href : "";
+  const external = href.startsWith("http");
+  return (
+    <a
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noreferrer" : undefined}
+      className="underline decoration-1 underline-offset-4 hover:bg-white hover:text-black"
+    >
+      {children}
+    </a>
+  );
+};
+
+// VCR is a pixel font: its strokes thicken with the size, so past ~19 px it
+// reads bold. Capped near the phone size, which keeps it light.
+const TRANSMISSION_SIZE = "text-[clamp(1.05rem,4.6vw,1.2rem)] leading-[1.6]";
+
+/** The radio's voice: subtitle lines on black, as in the home intro. The
+ * blinking cursor ends the last block, on its last line. */
+function transmissionText(lastKey?: string): PortableTextComponents {
+  const line = (children: ReactNode, key?: string) => (
+    <span className="bg-black box-decoration-clone px-1.5 py-0.5">
+      {children}
+      {key !== undefined && key === lastKey && (
+        <span aria-hidden="true" className="caret ml-[0.35em]">
+          █
+        </span>
+      )}
+    </span>
+  );
+  return {
+    block: {
+      normal: ({ children, value }) => (
+        <p className={`whitespace-pre-line ${TRANSMISSION_SIZE}`}>{line(children, value._key)}</p>
+      ),
+      blockquote: ({ children, value }) => (
+        <blockquote className={`border-l-4 border-white pl-4 ${TRANSMISSION_SIZE}`}>
+          {line(children, value._key)}
+        </blockquote>
+      ),
+    },
+    marks: { link },
+  };
+}
+
+/** Reading text: Anonymous Pro, sentence case. */
+const bodyText: PortableTextComponents = {
   block: {
     normal: ({ children }) => (
-      <p className="font-anonymous text-[#171717] text-base leading-relaxed sm:text-lg">
+      <p className="whitespace-pre-line font-anonymous text-base normal-case leading-relaxed tracking-normal text-white/90 sm:text-lg">
         {children}
       </p>
     ),
-    h2: ({ children }) => (
-      <h2 className="font-monigue text-[#171717] text-4xl uppercase leading-none sm:text-5xl">
-        {children}
-      </h2>
-    ),
-    h3: ({ children }) => (
-      <h3 className="font-anonymous text-[#171717] text-xl font-bold uppercase leading-tight">
-        {children}
-      </h3>
-    ),
+    h2: ({ children }) => <h3 className="text-xl leading-tight sm:text-2xl">{children}</h3>,
+    h3: ({ children }) => <h4 className="text-lg leading-tight">{children}</h4>,
     blockquote: ({ children }) => (
-      <blockquote className="border-l-2 border-[#171717]/70 pl-4 font-anonymous text-[#171717] text-lg uppercase leading-relaxed">
+      <blockquote className="border-l-4 border-white pl-4 font-anonymous text-lg normal-case leading-relaxed tracking-normal">
         {children}
       </blockquote>
     ),
   },
   list: {
     bullet: ({ children }) => (
-      <ul className="list-disc space-y-2 pl-5 font-anonymous text-[#171717] text-base leading-relaxed sm:text-lg">
+      <ul className="flex flex-col gap-2 font-anonymous text-base normal-case leading-relaxed tracking-normal sm:text-lg">
         {children}
       </ul>
     ),
     number: ({ children }) => (
-      <ol className="list-decimal space-y-2 pl-5 font-anonymous text-[#171717] text-base leading-relaxed sm:text-lg">
+      <ol className="flex list-decimal flex-col gap-2 pl-6 font-anonymous text-base normal-case leading-relaxed tracking-normal sm:text-lg">
         {children}
       </ol>
     ),
   },
   listItem: {
-    bullet: ({ children }) => <li>{children}</li>,
+    bullet: ({ children }) => <li className="before:mr-2 before:content-['▮']">{children}</li>,
     number: ({ children }) => <li>{children}</li>,
   },
-  marks: {
-    link: ({ children, value }) => {
-      const href = typeof value?.href === "string" ? value.href : "";
-      const isExternal = href.startsWith("http");
-
-      return (
-        <a
-          href={href}
-          target={isExternal ? "_blank" : undefined}
-          rel={isExternal ? "noreferrer" : undefined}
-          className="underline underline-offset-4 transition-opacity hover:opacity-60"
-        >
-          {children}
-        </a>
-      );
-    },
-  },
+  marks: { link },
 };
 
-function formatGenreBirth(date?: string) {
-  if (!date) return null;
+const RESOURCE_LABELS: Record<string, string> = {
+  article: "ARTICLE",
+  book: "LIVRE",
+  video: "VIDÉO",
+  audio: "AUDIO",
+  archive: "ARCHIVE",
+  other: "LIEN",
+};
 
+function formatBirth(date?: string) {
+  if (!date) return null;
   return new Intl.DateTimeFormat("fr-FR", {
     year: "numeric",
     month: "long",
     day: "numeric",
-  }).format(new Date(date));
+    timeZone: "UTC",
+  })
+    .format(new Date(date))
+    .toUpperCase();
 }
 
-function getResourceLabel(type?: string) {
-  const labels: Record<string, string> = {
-    article: "Article",
-    book: "Livre",
-    video: "Vidéo",
-    audio: "Audio",
-    archive: "Archive",
-    other: "Ressource",
-  };
-
-  return type ? labels[type] ?? "Ressource" : "Ressource";
+function hostOf(url?: string) {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
 }
+
+const pad = (n: number) => String(n).padStart(2, "0");
 
 async function getStory(slug: string) {
   if (!client) return null;
+  return client.fetch<Story | null>(storyBySlugQuery, { slug }, { next: { revalidate: 60 } });
+}
 
-  return client.fetch<Story | null>(
-    storyBySlugQuery,
-    { slug },
-    { next: { revalidate: 60 } },
-  );
+async function getStories() {
+  if (!client) return [];
+  return client.fetch<StoryItem[]>(allStoriesQuery, {}, { next: { revalidate: 60 } });
 }
 
 export async function generateStaticParams() {
@@ -205,231 +243,278 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function StoryDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const story = await getStory(slug);
+  const [story, stories] = await Promise.all([getStory(slug), getStories()]);
 
   if (!story) {
     notFound();
   }
 
-  const heroImageUrl = story.thumbnail
-    ? urlForImage(story.thumbnail).width(1600).height(900).url()
-    : null;
-  const hasStoryContent = Boolean(story.content?.length);
-  const hasGenreHistory = Boolean(story.genre?.history?.length);
-  const hasGenreImages = Boolean(story.genre?.images?.length);
-  const hasArchiveImages = Boolean(story.archiveImages?.length);
-  const hasKeyConcepts = Boolean(story.keyConcepts?.length);
-  const hasResources = Boolean(story.resources?.length);
-  const genreBirth = formatGenreBirth(story.genre?.birth);
+  const path = story.path ?? story.slug?.current ?? story._id;
+  const genre = story.genre;
+  const installation = findInstallationGenre({
+    path,
+    title: story.title,
+    genreName: genre?.name,
+  });
+  const year = story.birthYear ?? installation?.year;
+  const place = story.origin ?? installation?.place;
+  const meta = [year, place?.toUpperCase()].filter(Boolean).join(" · ") || undefined;
+  const birth = formatBirth(genre?.birth);
+  const others = buildMenu(stories).filter((g) => g.href !== `/stories/${path}`);
+
+  const archives = (story.archiveImages ?? []).filter((a) => a.image);
+  const genreImages = archives.length ? [] : (genre?.images ?? []);
+  const resources = (story.resources ?? []).filter((r) => r.url);
+  const concepts = (story.keyConcepts ?? []).filter((c) => c.title);
+  const hasContext = Boolean(genre?.description || genre?.history?.length);
+
+  // Fiche signal: what the installation knows, then Sanity's key notions.
+  const sheet: { label: string; value: string; body?: boolean }[] = [
+    ...(place ? [{ label: "ORIGINE", value: place.toUpperCase() }] : []),
+    ...(birth || year ? [{ label: "NAISSANCE", value: birth ?? String(year) }] : []),
+    ...(installation ? [{ label: "FRÉQUENCE", value: `${installation.freq.toFixed(1)} FM` }] : []),
+    ...(installation
+      ? [
+          {
+            label: "ÉGALISEUR",
+            // Non-breaking spaces: wraps between bands, never inside one.
+            value: `AIGUS ${installation.eq.high.toFixed(1)} · MÉDIUMS ${installation.eq.mid.toFixed(1)} · GRAVES ${installation.eq.low.toFixed(1)}`,
+          },
+        ]
+      : []),
+    ...concepts.map((c) => ({
+      label: (c.title ?? "").toUpperCase(),
+      value: c.description ?? "",
+      body: true,
+    })),
+  ];
+
+  let n = 0;
+  const next = () => pad(++n);
 
   return (
-    <main className="flex min-h-screen flex-1 flex-col bg-white px-4 pb-24 pt-20 text-[#171717] sm:px-6 sm:pt-24 md:px-12">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-14 sm:gap-16">
-        <Link
-          href="/"
-          className="w-fit font-anonymous text-sm uppercase tracking-wide transition-opacity hover:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#171717]"
-        >
-          [&lt;- Retour]
-        </Link>
+    <main className="flex flex-1 flex-col font-vcr uppercase tracking-[0.08em] text-white">
+      <GenreHero
+        title={story.title.toUpperCase()}
+        meta={meta}
+        freq={installation?.freq}
+        description={story.description}
+        model={installation?.model ?? null}
+        eq={installation?.eq ?? null}
+        tolerance={installation?.eqTolerance}
+      />
 
-        <section className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
-          <div className="relative aspect-4/3 w-full overflow-hidden sm:aspect-video">
-            {heroImageUrl ? (
-              <Image
-                src={heroImageUrl}
-                alt={story.title}
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 58vw"
-                className="object-cover"
+      <div className="mx-auto flex w-full max-w-6xl flex-col px-4 pb-16 sm:px-8">
+        {Boolean(story.content?.length) && (
+          <section className="section-rule grid gap-6 py-12 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16">
+            <SectionTitle index={next()} label="TRANSMISSION" />
+            <div className="flex max-w-[38em] flex-col gap-5 normal-case tracking-[0.02em]">
+              <PortableText
+                value={story.content ?? []}
+                components={transmissionText(story.content?.at(-1)?._key)}
               />
-            ) : (
-              <div className="h-full w-full bg-black/20" />
-            )}
-          </div>
-
-          <div className="flex flex-col gap-5">
-            <p className="font-anonymous text-sm uppercase tracking-[0.2em]">
-              {story.genre?.name ? `Genre musical: ${story.genre.name}` : "Histoire"}
-            </p>
-            <h1 className="font-monigue text-6xl uppercase leading-none sm:text-7xl md:text-8xl">
-              {story.title}
-            </h1>
-            {story.description && (
-              <p className="font-anonymous text-base uppercase leading-relaxed sm:text-lg">
-                {story.description}
-              </p>
-            )}
-            {(story.origin || story.birthYear) && (
-              <dl className="grid grid-cols-2 gap-4 border-y border-[#171717]/50 py-4 font-anonymous uppercase">
-                {story.origin && (
-                  <div>
-                    <dt className="text-xs tracking-wide opacity-70">Origine</dt>
-                    <dd className="mt-1 text-xl font-bold leading-tight">{story.origin}</dd>
-                  </div>
-                )}
-                {story.birthYear && (
-                  <div>
-                    <dt className="text-xs tracking-wide opacity-70">Année</dt>
-                    <dd className="mt-1 text-xl leading-tight">{story.birthYear}</dd>
-                  </div>
-                )}
-              </dl>
-            )}
-          </div>
-        </section>
-
-        {hasStoryContent && (
-          <section className="grid gap-5 md:grid-cols-[0.35fr_0.65fr] md:gap-10">
-            <h2 className="font-monigue text-5xl uppercase leading-none sm:text-6xl">
-              L&apos;histoire
-            </h2>
-            <div className="flex flex-col gap-5">
-              <PortableText value={story.content ?? []} components={portableTextComponents} />
             </div>
           </section>
         )}
 
-        {(story.genre?.name || story.genre?.description || hasGenreHistory) && (
-          <section className="grid gap-6 border-t border-[#171717]/50 pt-10 md:grid-cols-[0.35fr_0.65fr] md:gap-10">
-            <div className="flex flex-col gap-3">
-              <p className="font-anonymous text-sm uppercase tracking-[0.2em]">Genre musical</p>
-              <h2 className="font-monigue text-5xl uppercase leading-none sm:text-6xl">
-                {story.genre?.name}
-              </h2>
-              {(story.genre?.origin || genreBirth) && (
-                <div className="font-anonymous text-sm uppercase leading-relaxed opacity-90">
-                  {story.genre?.origin && <p>{story.genre.origin}</p>}
-                  {genreBirth && <p>{genreBirth}</p>}
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col gap-5">
-              {story.genre?.description && (
-                <p className="font-anonymous text-base uppercase leading-relaxed sm:text-lg">
-                  {story.genre.description}
+        {hasContext && (
+          <section className="section-rule grid gap-6 py-12 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16">
+            <SectionTitle index={next()} label="LE CONTEXTE" />
+            <div className="flex max-w-[65ch] flex-col gap-5 bg-black/85 p-4 sm:p-6">
+              {genre?.description && (
+                <p className="font-anonymous text-lg normal-case leading-relaxed tracking-normal">
+                  {genre.description}
                 </p>
               )}
-              {hasGenreHistory && (
-                <PortableText value={story.genre?.history ?? []} components={portableTextComponents} />
-              )}
+              <PortableText value={genre?.history ?? []} components={bodyText} />
             </div>
           </section>
         )}
 
-        {hasKeyConcepts && (
-          <section className="border-t border-[#171717]/50 pt-10">
-            <h2 className="font-monigue text-5xl uppercase leading-none sm:text-6xl">
-              Notions cles
-            </h2>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {story.keyConcepts?.map((concept) => (
-                <article key={concept._key} className="border border-[#171717]/50 p-4">
-                  <h3 className="font-anonymous text-xl font-bold uppercase leading-tight">
-                    {concept.title}
-                  </h3>
-                  {concept.description && (
-                    <p className="mt-3 font-anonymous text-sm uppercase leading-relaxed">
-                      {concept.description}
-                    </p>
-                  )}
-                </article>
+        {sheet.length > 0 && (
+          <section className="section-rule grid gap-6 py-12 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16">
+            <SectionTitle index={next()} label="FICHE SIGNAL" />
+            <dl className="flex max-w-176 flex-col divide-y-2 divide-dotted divide-white/50 border border-white bg-black">
+              {sheet.map((row, i) => (
+                <div
+                  key={`${row.label}-${i}`}
+                  className="flex flex-col gap-1.5 px-3 py-3 sm:flex-row sm:items-baseline sm:gap-6 sm:px-4"
+                >
+                  <dt className="shrink-0 text-[0.8rem] text-white/60 sm:w-52">{row.label}</dt>
+                  <dd
+                    className={
+                      row.body
+                        ? "font-anonymous text-base normal-case leading-relaxed tracking-normal"
+                        : "text-[clamp(0.95rem,4vw,1.15rem)]"
+                    }
+                  >
+                    {row.value}
+                  </dd>
+                </div>
               ))}
-            </div>
+            </dl>
           </section>
         )}
 
-        {(hasArchiveImages || hasGenreImages) && (
-          <section className="border-t border-[#171717]/50 pt-10">
-            <h2 className="font-monigue text-5xl uppercase leading-none sm:text-6xl">
-              Images d&apos;archives
-            </h2>
-            <div className="mt-6 grid gap-5 sm:grid-cols-2">
-              {story.archiveImages?.map((archive) => {
-                const archiveImageUrl = archive.image
-                  ? urlForImage(archive.image).width(900).height(650).url()
-                  : null;
-
-                if (!archiveImageUrl) return null;
-
+        {(archives.length > 0 || genreImages.length > 0) && (
+          <section className="section-rule grid gap-6 py-12 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16">
+            <SectionTitle index={next()} label="ARCHIVES" />
+            <div className="grid gap-8 sm:grid-cols-2 sm:gap-6">
+              {archives.map((archive, i) => {
+                const dims = archive.dimensions;
+                const src = urlForImage(archive.image!).width(1200).fit("max").url();
+                const host = archive.source?.startsWith("http") ? hostOf(archive.source) : null;
                 return (
-                  <figure key={archive._key} className="flex flex-col gap-3">
-                    <div className="relative aspect-4/3 overflow-hidden">
+                  <figure key={archive._key} className="flex flex-col gap-2">
+                    <div className="archive-frame relative overflow-hidden border border-white bg-black">
                       <Image
-                        src={archiveImageUrl}
+                        src={src}
                         alt={archive.caption || story.title}
-                        fill
-                        sizes="(max-width: 640px) 100vw, 50vw"
-                        className="object-cover"
+                        width={dims?.width ?? 1200}
+                        height={dims?.height ?? 900}
+                        sizes="(max-width: 640px) 100vw, (max-width: 1152px) 40vw, 460px"
+                        className="block h-auto w-full contrast-125 grayscale"
                       />
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-0 top-0 bg-black px-2 py-1 text-[0.75rem]"
+                      >
+                        ▶ ARCH. {pad(i + 1)}
+                      </span>
                     </div>
                     {(archive.caption || archive.source) && (
-                      <figcaption className="font-anonymous text-xs uppercase leading-relaxed opacity-90">
-                        {archive.caption}
-                        {archive.caption && archive.source ? " - " : ""}
-                        {archive.source}
+                      <figcaption className="flex flex-col gap-1 text-[0.8rem] leading-snug">
+                        {archive.caption && <span>{archive.caption}</span>}
+                        {archive.source &&
+                          (host ? (
+                            <a
+                              href={archive.source}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-fit text-white/60 hover:bg-white hover:text-black"
+                            >
+                              SOURCE ↗ {host}
+                            </a>
+                          ) : (
+                            <span className="text-white/60">SOURCE : {archive.source}</span>
+                          ))}
                       </figcaption>
                     )}
                   </figure>
                 );
               })}
-
-              {!hasArchiveImages &&
-                story.genre?.images?.map((image, index) => {
-                  const genreImageUrl = urlForImage(image).width(900).height(650).url();
-
-                  return (
-                    <figure key={`${story.genre?._id}-${index}`} className="flex flex-col gap-3">
-                      <div className="relative aspect-4/3 overflow-hidden">
-                        <Image
-                          src={genreImageUrl}
-                          alt={story.genre?.name || story.title}
-                          fill
-                          sizes="(max-width: 640px) 100vw, 50vw"
-                          className="object-cover"
-                        />
-                      </div>
-                    </figure>
-                  );
-                })}
+              {genreImages.map((image, i) => (
+                <div
+                  key={`${genre?._id}-${i}`}
+                  className="archive-frame relative overflow-hidden border border-white bg-black"
+                >
+                  <Image
+                    src={urlForImage(image).width(1200).fit("max").url()}
+                    alt={genre?.name || story.title}
+                    width={1200}
+                    height={900}
+                    sizes="(max-width: 640px) 100vw, 460px"
+                    className="block h-auto w-full contrast-125 grayscale"
+                  />
+                </div>
+              ))}
             </div>
           </section>
         )}
 
-        {hasResources && (
-          <section className="border-t border-[#171717]/50 pt-10">
-            <h2 className="font-monigue text-5xl uppercase leading-none sm:text-6xl">
-              Pour aller plus loin
-            </h2>
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {story.resources?.map((resource) => {
-                if (!resource.url) return null;
-
+        {resources.length > 0 && (
+          <section className="section-rule grid gap-6 py-12 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16">
+            <SectionTitle index={next()} label="POUR ALLER PLUS LOIN" />
+            <ul className="flex flex-col border border-white bg-black py-1.5">
+              {resources.map((r) => {
+                const host = hostOf(r.url);
                 return (
-                  <a
-                    key={resource._key}
-                    href={resource.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="border border-[#171717]/50 p-4 transition-colors hover:bg-[#171717] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#171717]"
-                  >
-                    <p className="font-anonymous text-xs uppercase tracking-[0.2em] opacity-80">
-                      {getResourceLabel(resource.type)}
-                    </p>
-                    <h3 className="mt-2 font-anonymous text-xl font-bold uppercase leading-tight">
-                      {resource.title}
-                    </h3>
-                    {resource.description && (
-                      <p className="mt-3 font-anonymous text-sm uppercase leading-relaxed">
-                        {resource.description}
-                      </p>
-                    )}
-                  </a>
+                  <li key={r._key}>
+                    <a
+                      href={r.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex min-h-11 items-start gap-3 px-3 py-3 outline-none hover:bg-white hover:text-black focus-visible:bg-white focus-visible:text-black sm:px-4"
+                    >
+                      <span className="flex min-w-0 flex-1 flex-col gap-1">
+                        <span className="text-[0.75rem] opacity-60">
+                          [{RESOURCE_LABELS[r.type ?? ""] ?? "LIEN"}]{host ? ` ${host}` : ""}
+                        </span>
+                        <span className="text-[clamp(0.95rem,4vw,1.15rem)] leading-snug wrap-anywhere">
+                          {r.title}
+                        </span>
+                        {r.description && (
+                          <span className="font-anonymous text-sm normal-case leading-relaxed tracking-normal opacity-80">
+                            {r.description}
+                          </span>
+                        )}
+                      </span>
+                      <span aria-hidden="true" className="pt-0.5">
+                        ↗
+                      </span>
+                      <span className="sr-only">(nouvel onglet)</span>
+                    </a>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           </section>
         )}
+
+        {others.length > 0 && (
+          <nav
+            aria-label="Autres genres"
+            className="section-rule flex flex-col py-12 md:grid md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16"
+          >
+            <h2 className="mb-2 w-fit bg-white px-2.5 py-1 text-[clamp(0.95rem,4vw,1.2rem)] text-black md:mb-0 md:self-start">
+              CHANGER DE FRÉQUENCE
+            </h2>
+            <ul className="flex flex-col border border-white bg-black py-1.5">
+              {others.map((g) => {
+                const row =
+                  "group flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-[clamp(1.4rem,7vw,2.4rem)] leading-none outline-none";
+                const content = (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="invisible text-[0.7em] group-hover:visible group-focus-visible:visible"
+                    >
+                      ▮
+                    </span>
+                    <span className={g.href ? "" : "opacity-45"}>{g.label}</span>
+                    <span aria-hidden="true" className="ml-auto text-[0.42em] tracking-[0.12em] opacity-70">
+                      {g.href ? (g.freq !== undefined ? `${g.freq.toFixed(1)} FM` : "") : "BIENTÔT"}
+                    </span>
+                  </>
+                );
+                return (
+                  <li key={g.label}>
+                    {g.href ? (
+                      <Link
+                        href={g.href}
+                        aria-label={g.meta ? `${g.label}, ${g.meta}` : g.label}
+                        className={`${row} hover:bg-white hover:text-black focus-visible:bg-white focus-visible:text-black`}
+                      >
+                        {content}
+                      </Link>
+                    ) : (
+                      <span aria-label={`${g.label}, bientôt`} className={row}>
+                        {content}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        )}
+
+        <footer className="section-rule flex flex-wrap items-center justify-between gap-4 pt-8 text-[0.85rem] text-white/70">
+          <span>▮ FIN DE TRANSMISSION</span>
+          <Link href="/" className="py-2 hover:bg-white hover:text-black focus-visible:bg-white focus-visible:text-black">
+            ◂ HOME
+          </Link>
+        </footer>
       </div>
     </main>
   );
