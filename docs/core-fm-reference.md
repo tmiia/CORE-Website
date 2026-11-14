@@ -370,3 +370,15 @@ Les pages `/stories/<slug>` passent à la DA de la refonte : noir et blanc, VCR 
 - Panneau : section « Page genre » (dérégler, taille, rotation, inclinaison, lumière, ton ASCII, déformation, égaliseur fantôme).
 
 À faire : compresser les glb (1.2 à 4.5 MB ; radio et sound system sont surtout des textures, inutiles à cette résolution ASCII ; le paredão fait 121k sommets). Pistes : gltf-transform (textures 512 px, meshopt).
+
+### Étape 10 : HOLD plus bas, choix du son (2026-11-14)
+
+- Bouton HOLD moins haut (`leading-none`, `py-3`) : 53 px sur mobile au lieu d'environ 72.
+- Sous la consigne, deux boutons discrets « AVEC SON » / « SANS SON » (`aria-pressed`, ▮ sur le choix actif). Choix mémorisé sur l'appareil (`localStorage`, clé `corefm-sound`, avec son par défaut) : `lib/experience/sound.ts`.
+- Tout l'audio passe par une sortie commune (`audioOutput()` dans `lib/experience/hum.ts`), coupée en fondu de 50 ms quand le son est désactivé. La voix de l'intro devra s'y brancher aussi.
+- Choisir « AVEC SON » est un geste : il débloque l'audio (`unlockAudio()`), donc le premier hold au doigt a déjà son bourdonnement (avant, il restait muet, voir étape 6).
+
+### Étape 11 : texte de l'intro (2026-11-14)
+
+- `lib/experience/introScript.ts` : le texte provisoire est remplacé par la narration définitive, au tutoiement comme le reste du site, découpée en 8 sous-titres aux pauses naturelles (39 à 76 caractères, 3 lignes au plus sur téléphone).
+- Durée avec le timing automatique (15 car./s) : environ 41 s. Avec la voix enregistrée, les temps viendront de l'enregistrement.
