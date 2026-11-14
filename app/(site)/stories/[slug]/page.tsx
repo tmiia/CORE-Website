@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  PortableText,
-  toPlainText,
-  type PortableTextBlock,
-  type PortableTextComponents,
-} from "@portabletext/react";
+import { toPlainText, type PortableTextBlock } from "@portabletext/react";
 import type { SanityImageSource } from "@sanity/image-url";
+import ContextSection, {
+  type ContextArchive,
+  type ContextParagraph,
+  type ContextRun,
+} from "@/components/genre/ContextSection";
 import GenreHero from "@/components/genre/GenreHero";
+import NotionsSheet, { type SheetRow } from "@/components/genre/NotionsSheet";
 import SectionTitle from "@/components/genre/SectionTitle";
+import StickyUnder from "@/components/genre/StickyUnder";
 import { buildMenu, findInstallationGenre, type StoryItem } from "@/lib/experience/genres";
 import { client } from "@/sanity/lib/client";
 import { allStoriesQuery, allStorySlugsQuery, storyBySlugQuery } from "@/sanity/lib/queries";
@@ -27,10 +27,12 @@ type KeyConcept = {
   description?: string;
 };
 
-type ArchiveImage = {
+/** An archive: an image, a short video, or both (the image is the poster). */
+type Archive = {
   _key: string;
   image?: SanityImageSource;
   dimensions?: { width: number; height: number };
+  videoUrl?: string;
   caption?: string;
   source?: string;
 };
@@ -62,9 +64,8 @@ type Story = {
   slug?: { current: string };
   path?: string;
   thumbnail?: SanityImageSource;
-  content?: PortableTextBlock[];
   keyConcepts?: KeyConcept[];
-  archiveImages?: ArchiveImage[];
+  archiveImages?: Archive[];
   resources?: Resource[];
   genre?: Genre;
 };
@@ -74,96 +75,20 @@ type StorySlug = {
   path?: string;
 };
 
-const link: NonNullable<PortableTextComponents["marks"]>["link"] = ({ children, value }) => {
-  const href = typeof value?.href === "string" ? value.href : "";
-  const external = href.startsWith("http");
-  return (
-    <a
-      href={href}
-      target={external ? "_blank" : undefined}
-      rel={external ? "noreferrer" : undefined}
-      className="underline decoration-1 underline-offset-4 hover:bg-white hover:text-black"
-    >
-      {children}
-    </a>
-  );
-};
+/** Portable Text internals read for the context: spans and their marks. */
+type Span = { _type: string; text?: string; marks?: string[] };
+type MarkDef = { _key: string; _type: string; url?: string; title?: string };
 
-// VCR is a pixel font: its strokes thicken with the size, so past ~19 px it
-// reads bold. Capped near the phone size, which keeps it light.
-const TRANSMISSION_SIZE = "text-[clamp(1.05rem,4.6vw,1.2rem)] leading-[1.6]";
-
-/** The radio's voice: subtitle lines on black, as in the home intro. The
- * blinking cursor ends the last block, on its last line. */
-function transmissionText(lastKey?: string): PortableTextComponents {
-  const line = (children: ReactNode, key?: string) => (
-    <span className="bg-black box-decoration-clone px-1.5 py-0.5">
-      {children}
-      {key !== undefined && key === lastKey && (
-        <span aria-hidden="true" className="caret ml-[0.35em]">
-          █
-        </span>
-      )}
-    </span>
-  );
-  return {
-    block: {
-      normal: ({ children, value }) => (
-        <p className={`whitespace-pre-line ${TRANSMISSION_SIZE}`}>{line(children, value._key)}</p>
-      ),
-      blockquote: ({ children, value }) => (
-        <blockquote className={`border-l-4 border-white pl-4 ${TRANSMISSION_SIZE}`}>
-          {line(children, value._key)}
-        </blockquote>
-      ),
-    },
-    marks: { link },
-  };
-}
-
-/** Reading text: Anonymous Pro, sentence case. */
-const bodyText: PortableTextComponents = {
-  block: {
-    normal: ({ children }) => (
-      <p className="whitespace-pre-line font-anonymous text-base normal-case leading-relaxed tracking-normal text-white/90 sm:text-lg">
-        {children}
-      </p>
-    ),
-    h2: ({ children }) => <h3 className="text-xl leading-tight sm:text-2xl">{children}</h3>,
-    h3: ({ children }) => <h4 className="text-lg leading-tight">{children}</h4>,
-    blockquote: ({ children }) => (
-      <blockquote className="border-l-4 border-white pl-4 font-anonymous text-lg normal-case leading-relaxed tracking-normal">
-        {children}
-      </blockquote>
-    ),
-  },
-  list: {
-    bullet: ({ children }) => (
-      <ul className="flex flex-col gap-2 font-anonymous text-base normal-case leading-relaxed tracking-normal sm:text-lg">
-        {children}
-      </ul>
-    ),
-    number: ({ children }) => (
-      <ol className="flex list-decimal flex-col gap-2 pl-6 font-anonymous text-base normal-case leading-relaxed tracking-normal sm:text-lg">
-        {children}
-      </ol>
-    ),
-  },
-  listItem: {
-    bullet: ({ children }) => <li className="before:mr-2 before:content-['▮']">{children}</li>,
-    number: ({ children }) => <li>{children}</li>,
-  },
-  marks: { link },
-};
-
-const RESOURCE_LABELS: Record<string, string> = {
-  article: "ARTICLE",
-  book: "LIVRE",
-  video: "VIDÉO",
-  audio: "AUDIO",
-  archive: "ARCHIVE",
-  other: "LIEN",
-};
+const RESOURCE_GROUPS: { type: string; label: string }[] = [
+  { type: "video", label: "VIDÉOS" },
+  { type: "article", label: "ARTICLES" },
+  { type: "book", label: "LIVRES" },
+  { type: "audio", label: "AUDIO" },
+  { type: "archive", label: "ARCHIVES" },
+  { type: "other", label: "LIENS" },
+];
+const groupOf = (type?: string) =>
+  RESOURCE_GROUPS.some((g) => g.type === type) ? (type as string) : "other";
 
 function formatBirth(date?: string) {
   if (!date) return null;
@@ -186,7 +111,61 @@ function hostOf(url?: string) {
   }
 }
 
+/** Same source, written differently: no protocol, no www, no trailing slash. */
+const sameUrl = (url?: string) =>
+  (url ?? "")
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+
 const pad = (n: number) => String(n).padStart(2, "0");
+const sourceId = (num: string) => `source-${num}`;
+
+/** The source notes of the history (annotation `sourceRef`). */
+function citedSources(history: PortableTextBlock[]): MarkDef[] {
+  return history.flatMap((block) =>
+    ((block.markDefs ?? []) as MarkDef[]).filter((d) => d._type === "sourceRef" && d.url),
+  );
+}
+
+/** A history block → text runs, with a note right after each cited passage
+ * (`num` gives the source's number in the list). */
+function contextRuns(
+  block: PortableTextBlock,
+  num: (url: string) => { note: string; title: string } | undefined,
+): ContextParagraph {
+  const defs = new Map(
+    ((block.markDefs ?? []) as MarkDef[])
+      .filter((d) => d._type === "sourceRef" && d.url)
+      .map((d) => [d._key, d]),
+  );
+  const spans = (Array.isArray(block.children) ? block.children : []) as Span[];
+  const runs: ContextRun[] = [];
+  const pushText = (text: string) => {
+    const last = runs.at(-1);
+    if (last && "text" in last) last.text += text;
+    else runs.push({ text });
+  };
+  spans.forEach((span, i) => {
+    if (span._type !== "span" || !span.text) return;
+    pushText(span.text);
+    for (const key of span.marks ?? []) {
+      const def = defs.get(key);
+      // The note goes after the last span of the cited passage.
+      if (!def?.url || spans[i + 1]?.marks?.includes(key)) continue;
+      const source = num(def.url);
+      if (source) runs.push({ note: source.note, href: `#${sourceId(source.note)}`, title: source.title });
+    }
+  });
+  return runs;
+}
+
+const CONTAINER = "mx-auto w-full max-w-6xl px-4 sm:px-8";
+const GRID = "grid grid-cols-4 gap-x-3 lg:grid-cols-12 lg:gap-x-6";
+const ROW_LINK =
+  "grid min-h-11 grid-cols-4 gap-x-3 py-3 outline-none hover:bg-white hover:text-black focus-visible:bg-white focus-visible:text-black lg:grid-cols-9 lg:gap-x-6";
 
 async function getStory(slug: string) {
   if (!client) return null;
@@ -223,9 +202,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
+  const history = story.genre?.history;
   const description =
     story.description ||
-    (story.content?.length ? toPlainText(story.content).slice(0, 155) : undefined);
+    story.genre?.description ||
+    (history?.length ? toPlainText(history).slice(0, 155) : undefined);
   const imageUrl = story.thumbnail
     ? urlForImage(story.thumbnail).width(1200).height(630).url()
     : undefined;
@@ -261,36 +242,90 @@ export default async function StoryDetailPage({ params }: PageProps) {
   const meta = [year, place?.toUpperCase()].filter(Boolean).join(" · ") || undefined;
   const birth = formatBirth(genre?.birth);
   const others = buildMenu(stories).filter((g) => g.href !== `/stories/${path}`);
+  const historyBlocks = (genre?.history ?? []).filter((block) => block._type === "block");
 
-  const archives = (story.archiveImages ?? []).filter((a) => a.image);
-  const genreImages = archives.length ? [] : (genre?.images ?? []);
+  // Sources: the story's resources, plus the ones the context cites that
+  // aren't in them (added as links). Numbered in display order (by type), so
+  // a note shows the same number as its row.
   const resources = (story.resources ?? []).filter((r) => r.url);
-  const concepts = (story.keyConcepts ?? []).filter((c) => c.title);
-  const hasContext = Boolean(genre?.description || genre?.history?.length);
+  for (const def of citedSources(historyBlocks)) {
+    if (resources.some((r) => sameUrl(r.url) === sameUrl(def.url))) continue;
+    resources.push({
+      _key: `cited-${def._key}`,
+      url: def.url,
+      title: def.title || hostOf(def.url) || def.url,
+      type: "other",
+    });
+  }
+  let count = 0;
+  const groups = RESOURCE_GROUPS.map((g) => ({
+    ...g,
+    items: resources
+      .filter((r) => groupOf(r.type) === g.type)
+      .map((r) => ({ ...r, num: pad(++count) })),
+  })).filter((g) => g.items.length > 0);
+  const numbered = groups.flatMap((g) => g.items);
+  const sourceNum = (url: string) => {
+    const r = numbered.find((s) => sameUrl(s.url) === sameUrl(url));
+    return r ? { note: r.num, title: r.title ?? hostOf(r.url) ?? "" } : undefined;
+  };
 
-  // Fiche signal: what the installation knows, then Sanity's key notions.
-  const sheet: { label: string; value: string; body?: boolean }[] = [
-    ...(place ? [{ label: "ORIGINE", value: place.toUpperCase() }] : []),
+  // Context: the genre's description, then its history (typed on scroll).
+  const contextParagraphs: ContextParagraph[] = [
+    ...(genre?.description?.trim() ? [[{ text: genre.description.trim() }]] : []),
+    ...historyBlocks.map((block) => contextRuns(block, sourceNum)),
+  ].filter((para) => para.some((run) => !("text" in run) || run.text.trim()));
+
+  // Archives laid over the context: the story's (images or videos), else the
+  // genre's images.
+  const storyArchives = (story.archiveImages ?? []).filter((a) => a.image || a.videoUrl);
+  const archives: ContextArchive[] = storyArchives.length
+    ? storyArchives.map((a) => ({
+        key: a._key,
+        image: a.image
+          ? {
+              src: urlForImage(a.image).width(1000).fit("max").url(),
+              width: a.dimensions?.width ?? 1200,
+              height: a.dimensions?.height ?? 900,
+            }
+          : undefined,
+        videoUrl: a.videoUrl,
+        caption: a.caption,
+        source: a.source,
+        sourceHost: a.source?.startsWith("http") ? hostOf(a.source) : null,
+      }))
+    : (genre?.images ?? []).map((image, i) => ({
+        key: `${genre?._id}-${i}`,
+        image: { src: urlForImage(image).width(1000).fit("max").url(), width: 1200, height: 900 },
+      }));
+  const archiveCredits = archives
+    .map((a, i) => ({ ...a, label: `ARCH. ${pad(i + 1)}` }))
+    .filter((a) => a.caption || a.source);
+
+  // Notions clés: when and where, then Sanity's key notions. The installation's
+  // frequency and EQ settings are in the hero already.
+  const sheet: SheetRow[] = [
+    ...(place ? [{ label: "ORIGINE", value: place }] : []),
     ...(birth || year ? [{ label: "NAISSANCE", value: birth ?? String(year) }] : []),
-    ...(installation ? [{ label: "FRÉQUENCE", value: `${installation.freq.toFixed(1)} FM` }] : []),
-    ...(installation
-      ? [
-          {
-            label: "ÉGALISEUR",
-            // Non-breaking spaces: wraps between bands, never inside one.
-            value: `AIGUS ${installation.eq.high.toFixed(1)} · MÉDIUMS ${installation.eq.mid.toFixed(1)} · GRAVES ${installation.eq.low.toFixed(1)}`,
-          },
-        ]
-      : []),
-    ...concepts.map((c) => ({
-      label: (c.title ?? "").toUpperCase(),
-      value: c.description ?? "",
-      body: true,
-    })),
+    ...(story.keyConcepts ?? [])
+      .filter((c) => c.title && c.description)
+      .map((c) => ({ label: c.title as string, value: c.description as string })),
   ];
 
   let n = 0;
   const next = () => pad(++n);
+
+  const context =
+    contextParagraphs.length > 0 || archives.length > 0 ? (
+      <ContextSection
+        index={next()}
+        meta={meta}
+        paragraphs={contextParagraphs}
+        archives={archives}
+        alt={story.title}
+      />
+    ) : null;
+  const notions = sheet.length > 0 ? <NotionsSheet index={next()} rows={sheet} /> : null;
 
   return (
     <main className="flex flex-1 flex-col font-vcr uppercase tracking-[0.08em] text-white">
@@ -304,163 +339,102 @@ export default async function StoryDetailPage({ params }: PageProps) {
         tolerance={installation?.eqTolerance}
       />
 
-      <div className="mx-auto flex w-full max-w-6xl flex-col px-4 pb-16 sm:px-8">
-        {Boolean(story.content?.length) && (
-          <section className="section-rule grid gap-6 py-12 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16">
-            <SectionTitle index={next()} label="TRANSMISSION" />
-            <div className="flex max-w-[38em] flex-col gap-5 normal-case tracking-[0.02em]">
-              <PortableText
-                value={story.content ?? []}
-                components={transmissionText(story.content?.at(-1)?._key)}
-              />
-            </div>
-          </section>
-        )}
+      {/* The notions sheet slides over the context's final composition. */}
+      {context && notions ? (
+        <div className="relative">
+          <StickyUnder>{context}</StickyUnder>
+          {notions}
+        </div>
+      ) : (
+        <>
+          {context}
+          {notions}
+        </>
+      )}
 
-        {hasContext && (
-          <section className="section-rule grid gap-6 py-12 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16">
-            <SectionTitle index={next()} label="LE CONTEXTE" />
-            <div className="flex max-w-[65ch] flex-col gap-5 bg-black/85 p-4 sm:p-6">
-              {genre?.description && (
-                <p className="font-anonymous text-lg normal-case leading-relaxed tracking-normal">
-                  {genre.description}
-                </p>
-              )}
-              <PortableText value={genre?.history ?? []} components={bodyText} />
-            </div>
-          </section>
-        )}
-
-        {sheet.length > 0 && (
-          <section className="section-rule grid gap-6 py-12 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16">
-            <SectionTitle index={next()} label="FICHE SIGNAL" />
-            <dl className="flex max-w-176 flex-col divide-y-2 divide-dotted divide-white/50 border border-white bg-black">
-              {sheet.map((row, i) => (
-                <div
-                  key={`${row.label}-${i}`}
-                  className="flex flex-col gap-1.5 px-3 py-3 sm:flex-row sm:items-baseline sm:gap-6 sm:px-4"
-                >
-                  <dt className="shrink-0 text-[0.8rem] text-white/60 sm:w-52">{row.label}</dt>
-                  <dd
-                    className={
-                      row.body
-                        ? "font-anonymous text-base normal-case leading-relaxed tracking-normal"
-                        : "text-[clamp(0.95rem,4vw,1.15rem)]"
-                    }
-                  >
-                    {row.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
-
-        {(archives.length > 0 || genreImages.length > 0) && (
-          <section className="section-rule grid gap-6 py-12 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16">
-            <SectionTitle index={next()} label="ARCHIVES" />
-            <div className="grid gap-8 sm:grid-cols-2 sm:gap-6">
-              {archives.map((archive, i) => {
-                const dims = archive.dimensions;
-                const src = urlForImage(archive.image!).width(1200).fit("max").url();
-                const host = archive.source?.startsWith("http") ? hostOf(archive.source) : null;
-                return (
-                  <figure key={archive._key} className="flex flex-col gap-2">
-                    <div className="archive-frame relative overflow-hidden border border-white bg-black">
-                      <Image
-                        src={src}
-                        alt={archive.caption || story.title}
-                        width={dims?.width ?? 1200}
-                        height={dims?.height ?? 900}
-                        sizes="(max-width: 640px) 100vw, (max-width: 1152px) 40vw, 460px"
-                        className="block h-auto w-full contrast-125 grayscale"
-                      />
-                      <span
-                        aria-hidden="true"
-                        className="absolute left-0 top-0 bg-black px-2 py-1 text-[0.75rem]"
+      {(groups.length > 0 || archiveCredits.length > 0) && (
+        <section className={`${CONTAINER} py-16 sm:py-24`}>
+          <SectionTitle index={next()} label="POUR ALLER PLUS LOIN" />
+          <div className={`${GRID} mt-10 gap-y-10`}>
+            {groups.map((g) => (
+              <div key={g.type} className="col-span-4 grid grid-cols-subgrid gap-y-3 lg:col-span-12">
+                <h3 className="col-span-4 text-[0.78rem] text-white/60 lg:col-span-3 lg:pt-3">
+                  {g.label} · {pad(g.items.length)}
+                </h3>
+                <ul className="col-span-4 border-t border-white bg-black lg:col-span-9">
+                  {g.items.map((r) => {
+                    const host = hostOf(r.url);
+                    return (
+                      <li
+                        key={r._key}
+                        id={sourceId(r.num)}
+                        className="source-row scroll-mt-24 border-b-2 border-dotted border-white/40"
                       >
-                        ▶ ARCH. {pad(i + 1)}
-                      </span>
-                    </div>
-                    {(archive.caption || archive.source) && (
-                      <figcaption className="flex flex-col gap-1 text-[0.8rem] leading-snug">
-                        {archive.caption && <span>{archive.caption}</span>}
-                        {archive.source &&
-                          (host ? (
-                            <a
-                              href={archive.source}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="w-fit text-white/60 hover:bg-white hover:text-black"
-                            >
-                              SOURCE ↗ {host}
-                            </a>
-                          ) : (
-                            <span className="text-white/60">SOURCE : {archive.source}</span>
-                          ))}
-                      </figcaption>
-                    )}
-                  </figure>
-                );
-              })}
-              {genreImages.map((image, i) => (
-                <div
-                  key={`${genre?._id}-${i}`}
-                  className="archive-frame relative overflow-hidden border border-white bg-black"
-                >
-                  <Image
-                    src={urlForImage(image).width(1200).fit("max").url()}
-                    alt={genre?.name || story.title}
-                    width={1200}
-                    height={900}
-                    sizes="(max-width: 640px) 100vw, 460px"
-                    className="block h-auto w-full contrast-125 grayscale"
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {resources.length > 0 && (
-          <section className="section-rule grid gap-6 py-12 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-10 md:py-16">
-            <SectionTitle index={next()} label="POUR ALLER PLUS LOIN" />
-            <ul className="flex flex-col border border-white bg-black py-1.5">
-              {resources.map((r) => {
-                const host = hostOf(r.url);
-                return (
-                  <li key={r._key}>
-                    <a
-                      href={r.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex min-h-11 items-start gap-3 px-3 py-3 outline-none hover:bg-white hover:text-black focus-visible:bg-white focus-visible:text-black sm:px-4"
-                    >
-                      <span className="flex min-w-0 flex-1 flex-col gap-1">
-                        <span className="text-[0.75rem] opacity-60">
-                          [{RESOURCE_LABELS[r.type ?? ""] ?? "LIEN"}]{host ? ` ${host}` : ""}
-                        </span>
-                        <span className="text-[clamp(0.95rem,4vw,1.15rem)] leading-snug wrap-anywhere">
-                          {r.title}
-                        </span>
-                        {r.description && (
-                          <span className="font-anonymous text-sm normal-case leading-relaxed tracking-normal opacity-80">
-                            {r.description}
+                        <a href={r.url} target="_blank" rel="noreferrer" className={ROW_LINK}>
+                          <span className="pl-2 text-[0.8rem] tabular-nums opacity-60">[{r.num}]</span>
+                          <span className="col-span-3 flex min-w-0 flex-col gap-1 pr-2 lg:col-span-8">
+                            {host && <span className="text-[0.72rem] opacity-60">{host} ↗</span>}
+                            <span className="text-[clamp(0.95rem,4vw,1.15rem)] leading-snug wrap-anywhere">
+                              {r.title}
+                            </span>
+                            {r.description && (
+                              <span className="font-anonymous text-sm normal-case leading-relaxed tracking-normal opacity-80">
+                                {r.description}
+                              </span>
+                            )}
                           </span>
-                        )}
-                      </span>
-                      <span aria-hidden="true" className="pt-0.5">
-                        ↗
-                      </span>
-                      <span className="sr-only">(nouvel onglet)</span>
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
+                          <span className="sr-only">(nouvel onglet)</span>
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
 
+            {archiveCredits.length > 0 && (
+              <div className="col-span-4 grid grid-cols-subgrid gap-y-3 lg:col-span-12">
+                <h3 className="col-span-4 text-[0.78rem] text-white/60 lg:col-span-3 lg:pt-3">
+                  CRÉDITS DES ARCHIVES
+                </h3>
+                <ul className="col-span-4 border-t border-white bg-black lg:col-span-9">
+                  {archiveCredits.map((a) => {
+                    const content = (
+                      <>
+                        <span className="pl-2 text-[0.8rem] opacity-60">{a.label}</span>
+                        <span className="col-span-3 flex min-w-0 flex-col gap-1 pr-2 lg:col-span-8">
+                          {a.caption && (
+                            <span className="text-[clamp(0.9rem,3.8vw,1.05rem)] leading-snug">{a.caption}</span>
+                          )}
+                          {a.source && (
+                            <span className="text-[0.72rem] opacity-60 wrap-anywhere">
+                              {a.sourceHost ? `${a.sourceHost} ↗` : `SOURCE : ${a.source}`}
+                            </span>
+                          )}
+                        </span>
+                      </>
+                    );
+                    return (
+                      <li key={a.key} className="border-b-2 border-dotted border-white/40">
+                        {a.sourceHost ? (
+                          <a href={a.source} target="_blank" rel="noreferrer" className={ROW_LINK}>
+                            {content}
+                            <span className="sr-only">(nouvel onglet)</span>
+                          </a>
+                        ) : (
+                          <div className="grid grid-cols-4 gap-x-3 py-3 lg:grid-cols-9 lg:gap-x-6">{content}</div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      <div className={`${CONTAINER} flex flex-col pb-16`}>
         {others.length > 0 && (
           <nav
             aria-label="Autres genres"
