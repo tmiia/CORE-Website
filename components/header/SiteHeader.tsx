@@ -4,10 +4,20 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { onStageCue, stageCues } from "@/lib/core-fm/stageCues";
 import { NAV_LINKS } from "@/lib/experience/nav";
-import NavOverlay from "./NavOverlay";
+import NavOverlay, { NAV_EXIT_MS } from "./NavOverlay";
 import RecIndicator from "./RecIndicator";
 
 const MENU_ID = "site-menu";
+
+type MenuState = "closed" | "open" | "closing";
+
+/** Open → closing (exit animation), or straight to closed in reduced motion. */
+const exitFrom = (m: MenuState): MenuState =>
+  m !== "open"
+    ? m
+    : window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "closed"
+      : "closing";
 
 /**
  * Site header, in the layout: camcorder REC timecode top-left, burger top-right
@@ -16,7 +26,8 @@ const MENU_ID = "site-menu";
  * Sits above the menu overlay so the burger (turned into ✕) closes it.
  */
 export default function SiteHeader() {
-  const [open, setOpen] = useState(false);
+  const [menu, setMenu] = useState<MenuState>("closed");
+  const open = menu === "open";
   const pathname = usePathname();
   const buttonRef = useRef<HTMLButtonElement>(null);
   // Server/hydration: the home starts with its opening, other pages are live.
@@ -26,9 +37,18 @@ export default function SiteHeader() {
     () => pathname !== "/",
   );
 
+  // Navigating (back/forward with the menu open) plays the exit too. A menu
+  // link already started it, so it carries on.
   useEffect(() => {
-    setOpen(false);
+    setMenu(exitFrom);
   }, [pathname]);
+
+  // The exit plays, then the menu unmounts.
+  useEffect(() => {
+    if (menu !== "closing") return;
+    const id = window.setTimeout(() => setMenu("closed"), NAV_EXIT_MS);
+    return () => clearTimeout(id);
+  }, [menu]);
 
   // Scrolled pages: a black fade behind the header, so REC and the burger
   // don't sit on top of the text scrolling under them.
@@ -41,8 +61,13 @@ export default function SiteHeader() {
   }, [pathname]);
 
   const close = () => {
-    setOpen(false);
+    setMenu(exitFrom);
     buttonRef.current?.focus({ preventScroll: true });
+  };
+
+  const toggle = () => {
+    if (menu === "open") close();
+    else if (menu === "closed") setMenu("open"); // ignored mid-exit
   };
 
   return (
@@ -62,7 +87,7 @@ export default function SiteHeader() {
           aria-expanded={open}
           aria-controls={MENU_ID}
           aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
-          onClick={() => (open ? close() : setOpen(true))}
+          onClick={toggle}
           className={`relative -m-2 flex size-11 items-center justify-center transition-opacity duration-700 ${
             live ? "pointer-events-auto opacity-100" : "opacity-0"
           }`}
@@ -84,7 +109,9 @@ export default function SiteHeader() {
           ))}
         </button>
       </header>
-      {open && live && <NavOverlay id={MENU_ID} links={NAV_LINKS} onClose={close} />}
+      {menu !== "closed" && live && (
+        <NavOverlay id={MENU_ID} links={NAV_LINKS} onClose={close} closing={menu === "closing"} />
+      )}
     </>
   );
 }

@@ -151,6 +151,75 @@ body {
   animation: glitch-in 0.28s steps(1, end) both;
 }
 
+/* Burger menu exit (~0.4 s), the entrance language in reverse: rows glitch
+   out (stepped flicker, jolts, red ghost), the title bar wipes away, the frame
+   closes upward, the backdrop fades. NAV_EXIT_MS (NavOverlay) matches it. */
+@keyframes glitch-out {
+  0% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(3px);
+    filter: drop-shadow(3px 0 0 #ff0026);
+  }
+  40% {
+    opacity: 0.2;
+    transform: skewX(-12deg);
+    filter: none;
+  }
+  60% {
+    opacity: 0.9;
+    transform: translateX(-4px);
+    filter: drop-shadow(-3px 0 0 #ff0026);
+  }
+  80% {
+    opacity: 0.15;
+    transform: translateX(2px);
+    filter: none;
+  }
+  100% {
+    opacity: 0;
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes wipe-x-out {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 100%);
+  }
+}
+@keyframes wipe-y-out {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+.glitch-out {
+  animation: glitch-out 0.22s steps(1, end) both;
+}
+.wipe-x-out {
+  animation: wipe-x-out 0.18s cubic-bezier(0.6, 0, 0.8, 0.2) 0.06s both;
+}
+.wipe-y-out {
+  animation: wipe-y-out 0.2s cubic-bezier(0.6, 0, 0.8, 0.2) 0.14s both;
+}
+.fade-out {
+  animation: fade-out 0.32s ease-in 0.08s both;
+}
+
 /* --- Genre pages --- */
 
 /* Section separator: the installation's dotted rule (5px dotted, 70 % white). */
@@ -179,7 +248,11 @@ body {
   .rec-blink,
   .wipe-x,
   .wipe-y,
-  .glitch-in {
+  .glitch-in,
+  .glitch-out,
+  .wipe-x-out,
+  .wipe-y-out,
+  .fade-out {
     animation: none;
   }
 }
