@@ -339,6 +339,17 @@ body {
   animation: source-target 1.4s steps(1, end) both;
 }
 
+/* Notions sheet: the blank end of the card, with faint ruled lines. */
+.sheet-lines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(3.5rem - 1px),
+    rgb(255 255 255 / 0.1) calc(3.5rem - 1px),
+    rgb(255 255 255 / 0.1) 3.5rem
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
   .context-text,
   .archive-photo {
