@@ -90,6 +90,14 @@ const norm = (s?: string) =>
 const matches = (story: Partial<StoryItem>, key: string) =>
   [story.path, story.title, story.genreName].some((v) => norm(v) === norm(key));
 
+/** 3D models of the menu's genres that have a page (preloaded by the home). */
+export function menuModels(menu: MenuGenre[]): string[] {
+  return menu.flatMap((g) => {
+    const model = g.href ? INSTALLATION_GENRES.find((i) => i.key === g.key)?.model : undefined;
+    return model ? [model] : [];
+  });
+}
+
 /** The installation genre a story is about (slug, title or genre name). */
 export function findInstallationGenre(story: Partial<StoryItem>): InstallationGenre | undefined {
   return INSTALLATION_GENRES.find((g) => matches(story, g.key));

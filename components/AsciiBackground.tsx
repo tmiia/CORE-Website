@@ -48,9 +48,12 @@ export default function AsciiBackground() {
       const { mountDebugPane } = await import("@/lib/core-fm/debugPane");
       if (disposed) return; // cleanup already disposed the stage
       const pane = mountDebugPane(stage);
+      // Console access for profiling (?debug only).
+      (window as unknown as { __coreStage?: unknown }).__coreStage = stage;
       cleanup = () => {
         pane.dispose();
         stage.dispose();
+        delete (window as unknown as { __coreStage?: unknown }).__coreStage;
       };
     })();
 

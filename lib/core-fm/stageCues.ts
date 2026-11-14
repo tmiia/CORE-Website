@@ -29,6 +29,9 @@ export const stageCues = {
   logo: "hidden" as LogoCue,
   forge: 0, // hold progress, 0..1
   genre: null as StageGenre | null, // null = no genre page (the wave shows)
+  // Models to load (and warm up on the GPU) ahead of time: the home's genres,
+  // during its loader, so opening a genre page never hitches.
+  preload: [] as string[],
 };
 
 const listeners = new Set<() => void>();
@@ -55,6 +58,13 @@ export function setLive(live: boolean): void {
 export function setLogoCue(cue: LogoCue): void {
   if (stageCues.logo === cue) return;
   stageCues.logo = cue;
+  notify();
+}
+
+export function setStagePreload(urls: string[]): void {
+  const next = urls.filter((u) => !stageCues.preload.includes(u));
+  if (!next.length) return;
+  stageCues.preload = [...stageCues.preload, ...next];
   notify();
 }
 

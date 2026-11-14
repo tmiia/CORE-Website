@@ -75,7 +75,8 @@ export default function GenreHero({
           const value = valueRefs.current[b];
           if (value) value.textContent = text;
           const fill = fillRefs.current[b];
-          if (fill) fill.style.width = `${v * 10}%`;
+          // Transform, not width: composited, no layout every frame.
+          if (fill) fill.style.transform = `scaleX(${v / 10})`;
         }
       }
       const status = statusRef.current;
@@ -163,8 +164,8 @@ export default function GenreHero({
                         ref={(el) => {
                           fillRefs.current[b] = el;
                         }}
-                        className="absolute inset-y-0 left-0 bg-white"
-                        style={{ width: `${t * 10}%` }}
+                        className="absolute inset-0 origin-left bg-white"
+                        style={{ transform: `scaleX(${t / 10})` }}
                       />
                       {/* Target window (± tolerance), visible over the fill too. */}
                       <span

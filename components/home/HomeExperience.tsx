@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { setForgeProgress, setLive, setLogoCue, setStageDark } from "@/lib/core-fm/stageCues";
+import {
+  setForgeProgress,
+  setLive,
+  setLogoCue,
+  setStageDark,
+  setStagePreload,
+} from "@/lib/core-fm/stageCues";
 import { EXPERIENCE } from "@/lib/experience/config";
-import type { MenuGenre } from "@/lib/experience/genres";
+import { type MenuGenre, menuModels } from "@/lib/experience/genres";
 import { installAudioUnlock } from "@/lib/experience/hum";
 import { autoTime, INTRO_LINES } from "@/lib/experience/introScript";
 import GenreMenu from "./GenreMenu";
@@ -48,6 +54,11 @@ export default function HomeExperience({ genres }: { genres: MenuGenre[] }) {
     installAudioUnlock();
     if (new URLSearchParams(window.location.search).has("nointro")) setPhase("menu");
   }, []);
+
+  // The genre pages' models load (and warm up) behind the loader.
+  useEffect(() => {
+    setStagePreload(menuModels(genres));
+  }, [genres]);
 
   // A single fixed screen: no page scroll, no rubber-band bounce on phones.
   useEffect(() => {

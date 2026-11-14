@@ -8,6 +8,7 @@ import {
   Group,
   type Material,
   type Mesh,
+  type MeshPhysicalMaterial,
   type MeshStandardMaterial,
   type Object3D,
   type PerspectiveCamera,
@@ -17,7 +18,8 @@ import {
   type WebGLRenderer,
 } from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { type GLTF, GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { createGltfLoader } from "../gltfLoader";
 
 /** Live-tunable (the debug pane edits this object). */
 export const GENRE_FX = {
@@ -68,9 +70,13 @@ export class GenreModelLayer {
   private readonly fitRoot = new Group(); // position + scale
   private readonly lean = new Group(); // facing + tilt
   private readonly spinner = new Group(); // turntable
+  // Warm-up: loaded models drawn for one frame, sub-pixel, so their shaders
+  // compile and their geometry + textures reach the GPU before they are shown.
+  private readonly warmRoot = new Group();
+  private warmFrames = 0;
   private readonly env: Texture;
   private readonly lights: { light: AmbientLight | DirectionalLight; base: number }[] = [];
-  private readonly loader = new GLTFLoader();
+  private readonly loader = createGltfLoader();
   private readonly requests = new Map<string, Promise<void>>();
   private readonly loaded = new Map<string, Loaded>();
   private current: { url: string; model: Loaded } | null = null;
@@ -101,8 +107,11 @@ export class GenreModelLayer {
 
     this.lean.add(this.spinner);
     this.fitRoot.add(this.lean);
-    this.group.add(this.fitRoot);
-    this.group.visible = false;
+    this.fitRoot.visible = false;
+    this.warmRoot.scale.setScalar(1e-4);
+    // The lights always stay in the scene (at 0 when no model shows): the
+    // light count is part of the shader, so warmed-up shaders stay valid.
+    this.group.add(this.fitRoot, this.warmRoot);
   }
 
   /** Start loading (no-op if loading or loaded). */
@@ -113,6 +122,32 @@ export class GenreModelLayer {
       this.requests.set(url, req);
     }
     return req;
+  }
+
+  /** Load several models; `onProgress` gets their mean progress (0..1). */
+  async preloadAll(urls: string[], onProgress?: (p: number) => void): Promise<void> {
+    const parts = urls.map(() => 0);
+    const report = () => onProgress?.(parts.reduce((a, b) => a + b, 0) / Math.max(1, parts.length));
+    await Promise.all(
+      urls.map((url, i) =>
+        this.preload(url, (p) => {
+          parts[i] = p;
+          report();
+        }),
+      ),
+    );
+    onProgress?.(1);
+  }
+
+  /**
+   * Put every loaded model on stage (sub-pixel) for the next rendered frame,
+   * then take them off. Call before the renderer's compile + a render.
+   */
+  warmUp(): void {
+    for (const [url, model] of this.loaded) {
+      if (this.current?.url !== url && !model.root.parent) this.warmRoot.add(model.root);
+    }
+    this.warmFrames = 2; // survives this frame's update, removed on the next
   }
 
   /**
@@ -152,6 +187,9 @@ export class GenreModelLayer {
    */
   update(dt: number, want: string | null, onScreen: boolean, still: boolean): void {
     if (want) void this.preload(want);
+    if (this.warmFrames > 0 && --this.warmFrames === 0) {
+      for (const child of [...this.warmRoot.children]) this.warmRoot.remove(child);
+    }
 
     // Swap once the current one has faded out (right away if none, or still).
     const swap = still || this.level <= 0.001 || !this.current;
@@ -180,7 +218,7 @@ export class GenreModelLayer {
     for (const { m, env } of this.current?.model.materials ?? []) {
       m.envMapIntensity = env * GENRE_FX.env * k;
     }
-    this.group.visible = !!this.current && this.level > 0.001 && onScreen;
+    this.fitRoot.visible = !!this.current && this.level > 0.001 && onScreen;
   }
 
   dispose(): void {
@@ -228,6 +266,10 @@ export class GenreModelLayer {
         const m = mat as MeshStandardMaterial;
         if (!("envMapIntensity" in m)) continue;
         fromSpecularGlossiness(gltf, m);
+        // Transmission (the Ford's glass) makes three render the whole scene
+        // a second time every frame; through ASCII it can't be seen anyway.
+        const physical = m as MeshPhysicalMaterial;
+        if (physical.isMeshPhysicalMaterial && physical.transmission > 0) physical.transmission = 0;
         m.envMap = this.env;
         materials.push({ m, env: m.envMapIntensity ?? 1 });
       }

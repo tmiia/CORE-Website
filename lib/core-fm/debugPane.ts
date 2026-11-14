@@ -51,6 +51,14 @@ export function mountDebugPane(stage: BackgroundStage): { dispose(): void } {
     overflowY: "auto",
   });
 
+  // Reduced motion: no loop, so the fps graph sits at 0 — say so.
+  pane.addBinding(stage.stats, "loop", { label: "boucle", readonly: true, interval: 500 });
+  pane.addBinding(stage.stats, "fps", {
+    label: "fps (moy.)",
+    readonly: true,
+    format: (v: number) => v.toFixed(0),
+    interval: 500,
+  });
   pane.addBinding(stage.stats, "fps", {
     readonly: true,
     view: "graph",
@@ -58,6 +66,21 @@ export function mountDebugPane(stage: BackgroundStage): { dispose(): void } {
     max: 120,
     interval: 200,
   });
+
+  // --- Performance ---
+  const fPerf = pane.addFolder({ title: "Performance", expanded: false });
+  fPerf.addBinding(stage.stats, "pixelRatio", { label: "densité actuelle", readonly: true, interval: 500 });
+  fPerf
+    .addBinding(STAGE_FX, "sceneSamples", { label: "scène (px/cellule)", min: 1, max: 8, step: 1 })
+    .on("change", (e: ChangeEvent<number>) => stage.setSceneSamples(e.value));
+  fPerf
+    .addBinding(STAGE_FX, "bloomScale", { label: "bloom (résolution)", min: 0.125, max: 1, step: 0.125 })
+    .on("change", (e: ChangeEvent<number>) => stage.setBloomScale(e.value));
+  fPerf.addBinding(stage.stats, "adaptive", { label: "qualité", readonly: true, interval: 500 });
+  fPerf.addBinding(stage.stats, "bloom", { label: "bloom", readonly: true, interval: 500 });
+  fPerf.addBinding(STAGE_FX, "adaptiveMinFps", { label: "adaptatif: fps min", min: 0, max: 60, step: 1 });
+  fPerf.addBinding(STAGE_FX, "adaptiveBloom", { label: "adaptatif: couper le bloom d'abord" });
+  fPerf.addBinding(STAGE_FX, "minPixelRatio", { label: "adaptatif: densité min", min: 0.5, max: 2, step: 0.25 });
 
   // --- Logo (chrome) ---
   // LOGO_FX is read every frame, so plain bindings apply live.
@@ -325,9 +348,10 @@ export function mountDebugPane(stage: BackgroundStage): { dispose(): void } {
     smoothing: bloom.luminanceMaterial.smoothing,
   };
   const fBloom = pane.addFolder({ title: "Bloom", expanded: false });
-  fBloom.addBinding(b, "enabled").on("change", (e: ChangeEvent<boolean>) => {
-    bloom.blendMode.blendFunction = e.value ? BlendFunction.ADD : BlendFunction.SKIP;
-  });
+  // Removes the bloom from the pass (a SKIP blend would still compute its blur).
+  fBloom
+    .addBinding(b, "enabled")
+    .on("change", (e: ChangeEvent<boolean>) => stage.setBloomEnabled(e.value));
   fBloom
     .addBinding(b, "intensity", { min: 0, max: 3, step: 0.05 })
     .on("change", (e: ChangeEvent<number>) => (STAGE_FX.bloom = e.value));
