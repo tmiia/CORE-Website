@@ -3,8 +3,7 @@ export interface NavLink {
   href: string;
 }
 
-/** Burger menu links. PLACEHOLDERS: /projet and /credits don't exist yet —
- * replace with the real pages. */
+/** Burger menu links. PLACEHOLDER: /credits doesn't exist yet. */
 export const NAV_LINKS: NavLink[] = [
   { label: "ACCUEIL", href: "/" },
   { label: "LE PROJET", href: "/projet" },
