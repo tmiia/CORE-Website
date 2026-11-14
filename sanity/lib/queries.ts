@@ -29,6 +29,7 @@ export const allStoriesQuery = groq`
     description,
     slug,
     "path": coalesce(slug.current, _id),
+    "genreName": genre->name,
     thumbnail,
   }
 `;
