@@ -5,7 +5,10 @@
  * (pointerdown): that gesture also unlocks audio for the rest of the visit.
  */
 
+import { onSoundChange, soundEnabled } from "./sound";
+
 let shared: AudioContext | null = null;
+let bus: GainNode | null = null;
 
 /** The site's AudioContext, once a gesture created it (for the voice-over). */
 export function audioContext(): AudioContext | null {
@@ -19,6 +22,28 @@ function ensureContext(): AudioContext | null {
     (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   shared = Ctor ? new Ctor() : null;
   return shared;
+}
+
+/**
+ * Where the site's sounds connect (not straight to the speakers): silent when
+ * the visitor chose no sound, with a short fade when it changes.
+ */
+export function audioOutput(): AudioNode | null {
+  const c = ensureContext();
+  if (!c) return null;
+  if (!bus) {
+    const out = c.createGain();
+    out.gain.value = soundEnabled() ? 1 : 0;
+    out.connect(c.destination);
+    onSoundChange(() => out.gain.setTargetAtTime(soundEnabled() ? 1 : 0, c.currentTime, 0.05));
+    bus = out;
+  }
+  return bus;
+}
+
+/** Call inside a user gesture (e.g. "sound on"): audio can play from now on. */
+export function unlockAudio(): void {
+  void ensureContext()?.resume();
 }
 
 let unlockInstalled = false;
@@ -69,7 +94,7 @@ export class Hum {
 
     this.master = c.createGain();
     this.master.gain.value = 0;
-    this.master.connect(c.destination);
+    this.master.connect(audioOutput() ?? c.destination);
 
     this.filter = c.createBiquadFilter();
     this.filter.type = "lowpass";

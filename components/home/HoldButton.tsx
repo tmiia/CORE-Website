@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { setForgeProgress } from "@/lib/core-fm/stageCues";
 import { EXPERIENCE } from "@/lib/experience/config";
 import { hapticSuccess, hapticTick } from "@/lib/experience/haptics";
-import { Hum } from "@/lib/experience/hum";
+import { Hum, unlockAudio } from "@/lib/experience/hum";
 import { scrambleText } from "@/lib/experience/scramble";
+import { onSoundChange, setSoundEnabled, soundEnabled } from "@/lib/experience/sound";
 
 const LABEL = "HOLD";
 const HINT = "MAINTIENS POUR CALER LE SIGNAL";
+const SOUND_CHOICES: [boolean, string][] = [
+  [true, "AVEC SON"],
+  [false, "SANS SON"],
+];
 const DECODE = { stagger: 0.02, shuffles: 4, shuffleStep: 0.04 };
 // Haptic ticks speed up with the hold: ms between ticks [start, full].
 const TICK_MS: [number, number] = [220, 60];
@@ -23,6 +28,7 @@ const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
  */
 export default function HoldButton({ onComplete }: { onComplete: () => void }) {
   const [p, setP] = useState(0);
+  const sound = useSyncExternalStore(onSoundChange, soundEnabled, () => true);
   const holding = useRef(false);
   const hum = useRef<Hum | null>(null);
   const hintRef = useRef<HTMLParagraphElement>(null);
@@ -115,7 +121,7 @@ export default function HoldButton({ onComplete }: { onComplete: () => void }) {
         onBlur={release}
         onContextMenu={(e) => e.preventDefault()}
         style={{ transform: shake, WebkitTouchCallout: "none" }}
-        className="pointer-events-auto relative touch-none select-none border border-white bg-black px-10 py-4 pl-[calc(2.5rem+0.3em)] text-[clamp(1.5rem,7vw,2.25rem)] tracking-[0.3em] outline-offset-4"
+        className="pointer-events-auto relative touch-none select-none border border-white bg-black px-10 py-3 pl-[calc(2.5rem+0.3em)] text-[clamp(1.5rem,7vw,2.25rem)] leading-none tracking-[0.3em] outline-offset-4"
       >
         <span>{LABEL}</span>
         {/* The fill: same label inverted, revealed left → right. */}
@@ -127,7 +133,36 @@ export default function HoldButton({ onComplete }: { onComplete: () => void }) {
           {LABEL}
         </span>
       </button>
-      <p ref={hintRef} aria-hidden="true" className="text-[clamp(0.75rem,3.2vw,0.95rem)] opacity-80" />
+      {/* The hint and the sound choice read as one block, close together. */}
+      <div className="flex flex-col items-center">
+        <p ref={hintRef} aria-hidden="true" className="text-[clamp(0.75rem,3.2vw,0.95rem)] opacity-80" />
+        {/* Sound choice: discreet, remembered on this device. Choosing "on" is
+            also a gesture, so the first touch-hold already has its hum. */}
+        <div role="group" aria-label="Son" className="pointer-events-auto flex gap-6 text-[clamp(0.68rem,2.8vw,0.78rem)]">
+          {SOUND_CHOICES.map(([on, label]) => {
+            const chosen = sound === on;
+            return (
+              <button
+                key={label}
+                type="button"
+                aria-pressed={chosen}
+                onClick={() => {
+                  setSoundEnabled(on);
+                  if (on) unlockAudio();
+                }}
+                className={`py-1.5 underline-offset-4 outline-none transition-colors hover:underline focus-visible:underline ${
+                  chosen ? "text-white/85" : "text-white/40 hover:text-white/70"
+                }`}
+              >
+                <span aria-hidden="true" className={chosen ? "" : "invisible"}>
+                  ▮{" "}
+                </span>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
