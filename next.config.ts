@@ -13,8 +13,10 @@ const lanAddresses = Object.values(networkInterfaces())
 const nextConfig: NextConfig = {
   allowedDevOrigins: lanAddresses,
 
-  // Prevent Next.js from bundling Sanity's server-side packages
-  serverExternalPackages: ["@sanity/client", "sanity"],
+  // The Sanity client stays out of the server bundle. Not `sanity` (the
+  // Studio): loaded with Node's require, it brings its own React, not the one
+  // Next renders with, and the Studio's server render fails ("useMemoCache").
+  serverExternalPackages: ["@sanity/client"],
 
   images: {
     remotePatterns: [
