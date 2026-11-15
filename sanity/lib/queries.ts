@@ -91,3 +91,26 @@ export const projectTopicsQuery = groq`
     body,
   }
 `;
+
+// Published document only (its fixed id, without "drafts."): with the token,
+// the default perspective would return drafts too.
+export const projectPageQuery = groq`
+  *[_id == $id][0] {
+    kicker,
+    title,
+    lede,
+    chapters[] {
+      label,
+      heading,
+      body,
+      images[] {
+        caption,
+        "src": asset->url,
+        "width": asset->metadata.dimensions.width,
+        "height": asset->metadata.dimensions.height,
+      },
+    },
+    installation { label, heading, body, rows[] { label, value } },
+    exhibition { start, end, venue, city, festival, festivalUrl, hours, entry, announcement },
+  }
+`;

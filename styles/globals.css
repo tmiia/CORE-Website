@@ -339,42 +339,6 @@ body {
   animation: source-target 1.4s steps(1, end) both;
 }
 
-/* Project page, "LE CONSTAT": the genre people hear, struck out (drawn in
-   steps, like the HUD), then the one it is. data-step: 0 idle, 1 the heard
-   word decodes, 2 struck out, 3 the genre decodes. No data-step: final state. */
-.mixup-strike {
-  position: relative;
-  display: inline-block;
-}
-.mixup-strike::after {
-  content: "";
-  position: absolute;
-  left: -0.08em;
-  right: -0.08em;
-  top: 48%;
-  height: 0.09em;
-  background: currentColor;
-  transform-origin: left;
-  transition: transform 0.3s steps(6, end);
-}
-.mixup-heard {
-  opacity: 0.45;
-  transition: opacity 0.3s ease;
-}
-.mixup[data-step="0"] .mixup-heard {
-  visibility: hidden;
-}
-.mixup:is([data-step="0"], [data-step="1"]) .mixup-heard {
-  opacity: 1;
-}
-.mixup:is([data-step="0"], [data-step="1"]) .mixup-strike::after {
-  transform: scaleX(0);
-}
-.mixup:is([data-step="0"], [data-step="1"]) .mixup-no,
-.mixup:is([data-step="0"], [data-step="1"], [data-step="2"]) :is(.mixup-genre, .mixup-yes) {
-  visibility: hidden;
-}
-
 /* Notions sheet: the blank end of the card, with faint ruled lines. */
 .sheet-lines {
   background: repeating-linear-gradient(

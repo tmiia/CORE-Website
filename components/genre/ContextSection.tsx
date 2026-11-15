@@ -56,7 +56,6 @@ export default function ContextSection({
   paragraphs,
   archives,
   alt,
-  variant = "body",
 }: {
   index: string;
   label?: string;
@@ -64,8 +63,6 @@ export default function ContextSection({
   paragraphs: ContextParagraph[];
   archives: ContextArchive[];
   alt: string;
-  /** body: reading text (Anonymous Pro). statement: a few large lines (VCR). */
-  variant?: "body" | "statement";
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -87,12 +84,9 @@ export default function ContextSection({
   const spanVh = BUDGET.lead + typeVh + archives.length * BUDGET.perArchive + BUDGET.hold;
   // Long texts get a smaller size so they still fit on a phone screen.
   const textSize =
-    variant === "statement"
-      ? "font-vcr uppercase tracking-[0.04em] text-[clamp(1.35rem,6vw,2.4rem)] leading-[1.4]"
-      : total > 560
-        ? "font-anonymous normal-case tracking-normal text-[clamp(0.95rem,3.9vw,1.15rem)] leading-[1.65]"
-        : "font-anonymous normal-case tracking-normal text-[clamp(1.05rem,4.4vw,1.3rem)] leading-[1.7]";
-  const textWidth = variant === "statement" ? "lg:w-[72%]" : "lg:w-[52%]";
+    total > 560
+      ? "font-anonymous normal-case tracking-normal text-[clamp(0.95rem,3.9vw,1.15rem)] leading-[1.65]"
+      : "font-anonymous normal-case tracking-normal text-[clamp(1.05rem,4.4vw,1.3rem)] leading-[1.7]";
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -325,7 +319,7 @@ export default function ContextSection({
           <div className="relative mt-6 flex flex-1 flex-col justify-center-safe pb-[clamp(2rem,9svh,5rem)]">
             {/* Text block + the pile laid on it (siblings: dimming the text
                 must not dim the prints). */}
-            <div className={`relative ${textWidth}`}>
+            <div className="relative lg:w-[52%]">
               <div ref={textRef} className={`context-text flex flex-col gap-5 select-none ${textSize}`}>
                 {visualText(true)}
               </div>
