@@ -437,3 +437,9 @@ Ordre : héros → 01 POURQUOI → 02 LE CONSTAT → 03 SE RAPPELER → 04 L'INS
 
 - **Intro** (`INTRO_LINES`) : seulement les 2 premiers sous-titres, « Bienvenue dans les archives de CORE.FM, / la radio qui te fait redécouvrir l'histoire des musiques noires populaires. » (environ 9 s). Le reste (les genres, leurs origines oubliées, le but de l'installation) est raconté sur la page projet.
 - **Son coupé par défaut** (`SOUND_DEFAULT` dans `lib/experience/sound.ts`) : sur l'écran HOLD, « SANS SON » est sélectionné ; c'est au visiteur de cliquer « AVEC SON ». Le navigateur ne joue rien avant un geste de toute façon, et ce clic débloque l'audio. Un choix déjà enregistré sur l'appareil (« on » ou « off ») est respecté.
+
+### Étape 16 : page crédits, menu (2026-11-14)
+
+- **Menu burger** (`lib/experience/nav.ts`) : plus de lien ACCUEIL, seulement LE PROJET et CRÉDITS. Chaque page a son propre « ◂ HOME ».
+- **Page crédits** (`app/(site)/credits/page.tsx`) : exactement un écran (`h-dvh`, rien ne défile), comme un générique d'émission. Barre « CRÉDITS », « ◂ HOME », les 4 personnes, puis « CORE.FM · CONÇUE AUX GOBELINS, L'ÉCOLE DE L'IMAGE · 2026 ». Téléphone : une ligne par personne, rôles à la suite (séparés par ·). Paysage (ordinateur, téléphone couché) : 4 colonnes, un rôle par ligne. Les tailles suivent la hauteur autant que la largeur (`min(vw, svh)`), testé de 375×667 à 1440×900 et en 844×390.
+- **Contenu** (`lib/experience/credits.ts`) : noms et liens tirés de la page CORE.FM du portfolio de Nehémia, rôles tels que l'équipe les a décrits. Ordre : project lead, puis l'ordre du portfolio. Dana n'a pas de lien sur le portfolio : aucun bouton tant qu'il n'y en a pas. Pour ajouter un réseau : une entrée `{ label, url }` dans `links`.
