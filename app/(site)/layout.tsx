@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "@/styles/globals.css";
-import Header from "@/components/Header";
-import IntroLoader from "@/components/IntroLoader";
-import Image from "next/image";
+import AsciiBackground from "@/components/AsciiBackground";
+import SiteHeader from "@/components/header/SiteHeader";
 
 const anonymousPro = localFont({
   src: [
@@ -30,11 +29,22 @@ const monigue = localFont({
   display: "swap",
 });
 
+// HUD font of the installation (TV1/TV2).
+const vcr = localFont({
+  src: "../../public/assets/fonts/VCR_OSD_MONO.ttf",
+  variable: "--font-vcr",
+  weight: "400",
+  style: "normal",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Core Website",
   description: "Core Website",
 };
 
+// Redesign: the old Header, IntroLoader and footer symbol are unmounted (files
+// kept for now). The ASCII wave stays here so it survives navigations.
 export default function SiteLayout({
   children,
 }: Readonly<{
@@ -42,21 +52,13 @@ export default function SiteLayout({
 }>) {
   return (
     <div
-      className={`${anonymousPro.variable} ${monigue.variable} min-h-screen flex flex-col antialiased bg-linear-59 from-light-orange to-dark-orange`}
+      // min-h-dvh, not min-h-screen: on phones 100vh is taller than the visible
+      // area (URL bar), which made the page scroll a little.
+      className={`${anonymousPro.variable} ${monigue.variable} ${vcr.variable} min-h-dvh flex flex-col antialiased`}
     >
-      <IntroLoader />
-      <Header />
+      <AsciiBackground />
+      <SiteHeader />
       {children}
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-foreground p-1">
-        <Image
-          src="/assets/symbols/nea-onnim.svg"
-          alt=""
-          width={22.15}
-          height={22.15}
-          aria-hidden="true"
-          className="p-0 m-0"
-        />
-      </div>
     </div>
   );
 }

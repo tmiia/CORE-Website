@@ -3,24 +3,32 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-page: var(--page);
 
   --color-light-orange: #EB5D10;
   --color-dark-orange: #FC401A;
 
   --font-anonymous: var(--font-anonymous);
   --font-monigue: var(--font-monigue);
+  --font-vcr: var(--font-vcr);
+
+  /* Camcorder REC red (header dot, detuned equalizer). */
+  --color-rec: #ff2b2b;
 }
 
 :root {
+  /* Redesign: black page, white text. `--background` stays white because the
+     existing components use `text-background` as "light text". */
+  --page: #000000;
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #ffffff;
 
   --color-light-orange: #EB5D10;
   --color-dark-orange: #A03D0A;
 }
 
 body {
-  background: var(--background);
+  background: var(--page);
   color: var(--foreground);
   font-family: var(--font-sans, Arial, Helvetica, sans-serif);
 }
@@ -42,5 +50,347 @@ body {
   .intro-header {
     transform: none;
     animation: intro-header-in 0.1s ease-out 0.65s forwards;
+  }
+}
+
+/* --- Home experience (installation HUD conventions) --- */
+
+/* Typewriter cursor. */
+.caret {
+  animation: caret-blink 1s steps(1) infinite;
+}
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Header sound toggle: level-meter bars jumping in steps while sound is on
+   (each bar has its own duration and delay, SoundToggle). */
+@keyframes eq-bar {
+  0% {
+    transform: scaleY(0.35);
+  }
+  25% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.55);
+  }
+  75% {
+    transform: scaleY(0.85);
+  }
+}
+.eq-bar {
+  animation: eq-bar 0.8s steps(1) infinite;
+}
+
+/* Hint blink, as on TV1 (.result-hint--send). */
+.hint-blink {
+  animation: hint-blink 1.6s steps(1) infinite;
+}
+@keyframes hint-blink {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  71%,
+  100% {
+    opacity: 0.4;
+  }
+}
+
+/* Camcorder REC dot: on 1 s, off 1 s… sharp, no fade. */
+.rec-blink {
+  animation: rec-blink 1.2s steps(1) infinite;
+}
+@keyframes rec-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Genre menu entrance (~0.3 s): white bar wipes in, the frame opens, labels
+   glitch in (stepped flicker + jolts + red ghost, like TV1's error glitch). */
+@keyframes wipe-x {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes wipe-y {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes glitch-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateX(3px);
+    filter: drop-shadow(3px 0 0 #ff0026);
+  }
+  30% {
+    opacity: 0.15;
+    transform: translateX(-2px);
+    filter: none;
+  }
+  45% {
+    opacity: 1;
+    transform: skewX(-12deg);
+    filter: drop-shadow(-3px 0 0 #ff0026);
+  }
+  60% {
+    opacity: 0.5;
+    transform: translateX(2px);
+    filter: none;
+  }
+  75%,
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+.wipe-x {
+  animation: wipe-x 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.wipe-y {
+  animation: wipe-y 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) 0.04s both;
+}
+/* steps(1): each keyframe is held, then cut — a flicker, not a fade. */
+.glitch-in {
+  animation: glitch-in 0.28s steps(1, end) both;
+}
+
+/* Burger menu exit (~0.4 s), the entrance language in reverse: rows glitch
+   out (stepped flicker, jolts, red ghost), the title bar wipes away, the frame
+   closes upward, the backdrop fades. NAV_EXIT_MS (NavOverlay) matches it. */
+@keyframes glitch-out {
+  0% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  20% {
+    opacity: 1;
+    transform: translateX(3px);
+    filter: drop-shadow(3px 0 0 #ff0026);
+  }
+  40% {
+    opacity: 0.2;
+    transform: skewX(-12deg);
+    filter: none;
+  }
+  60% {
+    opacity: 0.9;
+    transform: translateX(-4px);
+    filter: drop-shadow(-3px 0 0 #ff0026);
+  }
+  80% {
+    opacity: 0.15;
+    transform: translateX(2px);
+    filter: none;
+  }
+  100% {
+    opacity: 0;
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes wipe-x-out {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 100%);
+  }
+}
+@keyframes wipe-y-out {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+.glitch-out {
+  animation: glitch-out 0.22s steps(1, end) both;
+}
+.wipe-x-out {
+  animation: wipe-x-out 0.18s cubic-bezier(0.6, 0, 0.8, 0.2) 0.06s both;
+}
+.wipe-y-out {
+  animation: wipe-y-out 0.2s cubic-bezier(0.6, 0, 0.8, 0.2) 0.14s both;
+}
+.fade-out {
+  animation: fade-out 0.32s ease-in 0.08s both;
+}
+
+/* --- Genre pages --- */
+
+/* Section separator: the installation's dotted rule (5px dotted, 70 % white). */
+.section-rule {
+  border-top: 4px dotted rgb(255 255 255 / 0.5);
+}
+
+/* Archive photos: CRT scanlines over the greyscale image. */
+.archive-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0) 0,
+    rgb(0 0 0 / 0) 2px,
+    rgb(0 0 0 / 0.28) 2px,
+    rgb(0 0 0 / 0.28) 3px
+  );
+}
+
+/* Context text: subtitle lines on black (as the intro), padded with shadows
+   rather than padding so the typed part never reflows the text. */
+.context-line {
+  background: #000;
+  box-shadow:
+    0.25em 0 0 #000,
+    -0.25em 0 0 #000;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.context-text {
+  transition: opacity 0.45s ease;
+}
+.context-text[data-dim] {
+  opacity: 0.45;
+}
+
+/* An archive as a print: white border, a caption strip in the bottom margin,
+   the installation's hard shadow (error window). */
+.archive-print {
+  background: #fff;
+  padding: 0.375rem 0.375rem 0.5rem;
+  box-shadow: 5px 5px 0 rgb(0 0 0 / 0.6);
+}
+/* Context section: a pile laid on the text. Each print is centred on the text
+   block (--ax, 50 %), shifted by --dx/--dy (% of its own size), tilted by
+   --r. Lifted (bigger, more tilted, higher, longer shadow) → put down. */
+.archive-photo {
+  --ax: 50%;
+  left: var(--ax);
+  top: 50%;
+  opacity: 0;
+  transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy) + 1.5rem))
+    rotate(calc(var(--r) * 3)) scale(1.12);
+  box-shadow: 14px 18px 0 rgb(0 0 0 / 0.35);
+  pointer-events: none;
+  transition:
+    opacity 0.16s linear,
+    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.archive-photo[data-on] {
+  opacity: 1;
+  transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--r));
+  box-shadow: 5px 5px 0 rgb(0 0 0 / 0.6);
+  pointer-events: auto;
+}
+/* Desktop: the pile sits on the right half of the text column. */
+@media (min-width: 64rem) {
+  .archive-photo {
+    --ax: 62%;
+  }
+}
+
+/* Context: note pointing to a source (superscript, inverted, as the HUD). The
+   ::after widens the touch target without moving the text. */
+.source-note {
+  position: relative;
+  margin-left: 0.15em;
+  padding: 0.05em 0.3em;
+  background: #fff;
+  color: #000;
+  font-family: var(--font-vcr);
+  font-size: 0.62em;
+  letter-spacing: 0.04em;
+  line-height: 0;
+  vertical-align: super;
+  text-decoration: none;
+}
+.source-note::after {
+  content: "";
+  position: absolute;
+  inset: -0.9rem -0.5rem;
+}
+.source-note:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+/* The source a note jumps to blinks inverted, in steps (TV1 alarm rhythm). */
+@keyframes source-target {
+  0%,
+  50% {
+    background: #fff;
+    color: #000;
+  }
+  25%,
+  75%,
+  100% {
+    background: transparent;
+    color: inherit;
+  }
+}
+.source-row:target > a {
+  animation: source-target 1.4s steps(1, end) both;
+}
+
+/* Notions sheet: the blank end of the card, with faint ruled lines. */
+.sheet-lines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(3.5rem - 1px),
+    rgb(255 255 255 / 0.1) calc(3.5rem - 1px),
+    rgb(255 255 255 / 0.1) 3.5rem
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .context-text,
+  .archive-photo {
+    transition: none;
+  }
+  .source-row:target > a {
+    animation: none;
+    background: #fff;
+    color: #000;
+  }
+  .caret,
+  .eq-bar,
+  .hint-blink,
+  .rec-blink,
+  .wipe-x,
+  .wipe-y,
+  .glitch-in,
+  .glitch-out,
+  .wipe-x-out,
+  .wipe-y-out,
+  .fade-out {
+    animation: none;
   }
 }

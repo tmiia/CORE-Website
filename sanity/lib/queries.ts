@@ -29,6 +29,7 @@ export const allStoriesQuery = groq`
     description,
     slug,
     "path": coalesce(slug.current, _id),
+    "genreName": genre->name,
     thumbnail,
   }
 `;
@@ -50,7 +51,6 @@ export const storyBySlugQuery = groq`
     slug,
     "path": coalesce(slug.current, _id),
     thumbnail,
-    content,
     keyConcepts[] {
       _key,
       title,
@@ -59,6 +59,8 @@ export const storyBySlugQuery = groq`
     archiveImages[] {
       _key,
       image,
+      "dimensions": image.asset->metadata.dimensions { width, height },
+      "videoUrl": video.asset->url,
       caption,
       source,
     },
@@ -87,5 +89,28 @@ export const projectTopicsQuery = groq`
     title,
     subtitle,
     body,
+  }
+`;
+
+// Published document only (its fixed id, without "drafts."): with the token,
+// the default perspective would return drafts too.
+export const projectPageQuery = groq`
+  *[_id == $id][0] {
+    kicker,
+    title,
+    lede,
+    chapters[] {
+      label,
+      heading,
+      body,
+      images[] {
+        caption,
+        "src": asset->url,
+        "width": asset->metadata.dimensions.width,
+        "height": asset->metadata.dimensions.height,
+      },
+    },
+    installation { label, heading, body, rows[] { label, value } },
+    exhibition { start, end, venue, city, festival, festivalUrl, hours, entry, announcement },
   }
 `;
