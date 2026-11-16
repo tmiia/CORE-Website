@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import type { NavLink } from "@/lib/experience/nav";
 import { scrambleText } from "@/lib/experience/scramble";
+import { softGlitch } from "@/lib/experience/sfx";
 
 const TITLE = "MENU";
 const MARKER = "▮";
@@ -64,6 +65,11 @@ export default function NavOverlay({
       cancels.forEach((cancel) => cancel());
     };
   }, [links]);
+
+  // The rows glitch out: a light crackle for the cascade (~0.3 s).
+  useEffect(() => {
+    if (closing) softGlitch(0.3);
+  }, [closing]);
 
   const highlight = (i: number) => {
     if (i === active) return;

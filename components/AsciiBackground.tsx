@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { completeAllLoads, reportLoad } from "@/lib/core-fm/loadProgress";
+import { appearGlitch } from "@/lib/experience/sfx";
 
 /**
  * Fixed full-viewport WebGL background: the installation's oscilloscope wave
@@ -41,6 +42,8 @@ export default function AsciiBackground() {
         completeAllLoads();
         return;
       }
+      // A genre model tears in (ASCII glitch): static that settles with it.
+      stage.genre.onAppear = appearGlitch;
       stage.start();
       cleanup = () => stage.dispose();
 

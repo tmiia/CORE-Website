@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { MenuGenre } from "@/lib/experience/genres";
 import { scrambleText } from "@/lib/experience/scramble";
+import { glitch } from "@/lib/experience/sfx";
 
 const TITLE = "CHOISIS UN GENRE";
 const MARKER = "▮";
@@ -15,6 +16,7 @@ const ENTRANCE_DECODE = { stagger: 0.012, shuffles: 3, shuffleStep: 0.03, fade: 
 const TITLE_AT = 0.08; // s, once the white bar has wiped in
 const ROW_AT = 0.06; // s, first row…
 const ROW_STEP = 0.045; // …then one more every 45 ms, in a shuffled order
+const ROW_GLITCH = 0.28; // s, .glitch-in (globals.css)
 const LEAVE_DELAY = 450; // ms: let the selection decode before navigating
 
 /** A random order of 0..n-1: the rows cascade in out of order. */
@@ -61,9 +63,13 @@ export default function GenreMenu({
   const rank = useMemo(() => shuffledRanks(genres.length), [genres.length]);
   const rowAt = (i: number) => ROW_AT + (rank[i] ?? i) * ROW_STEP;
 
-  // Entrance decode, in step with the CSS glitch (wipe-x / wipe-y / glitch-in).
+  // Entrance decode, in step with the CSS glitch (wipe-x / wipe-y / glitch-in),
+  // and one burst of static for the whole cascade.
   useEffect(() => {
     if (!shown) return;
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      glitch({ duration: ROW_AT + (genres.length - 1) * ROW_STEP + ROW_GLITCH });
+    }
     const cancels: (() => void)[] = [];
     const at = (s: number, fn: () => void) => window.setTimeout(fn, s * 1000);
     const timers = [

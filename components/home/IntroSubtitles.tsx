@@ -1,12 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { type Cue, typedCount } from "@/lib/experience/introScript";
+import { audioOutput, runningContext, sample } from "@/lib/experience/audio";
+import { type Cue, INTRO_VOICE, typedCount } from "@/lib/experience/introScript";
+import { SFX, typeKey } from "@/lib/experience/sfx";
+import { soundEnabled } from "@/lib/experience/sound";
+
+interface Voice {
+  c: AudioContext;
+  src: AudioBufferSourceNode;
+  gain: GainNode;
+  zero: number; // context time of the recording's t = 0
+}
 
 /**
- * Typed subtitles over the wave: one line at a time, typewriter-style, with a
- * blinking block caret. Driven by a clock (performance.now for now; the voice
- * recording's currentTime later), so the typing can follow the voice.
+ * Typed subtitles over the wave, one line at a time, typewriter-style, with a
+ * blinking block caret and a key click per character. Driven by the voice-over:
+ * while it plays, its clock (what is heard now) types the lines. Without it
+ * (sound off, audio still locked, file not loaded), a plain clock with the
+ * same timing; if it becomes possible mid-intro (sound turned on), the voice
+ * joins at the current line, like tuning into a broadcast already on.
  */
 export default function IntroSubtitles({
   cues,
@@ -24,11 +37,38 @@ export default function IntroSubtitles({
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const last = cues[cues.length - 1];
-    const t0 = performance.now();
+    const t0 = performance.now() + INTRO_VOICE.lead * 1000;
     let raf = 0;
+    let voice: Voice | null = null;
+    let t = -Infinity; // recording time; never goes back
+    let shown = { index: -1, count: 0 };
+
+    const tryVoice = (at: number) => {
+      if (voice || at < 0 || !soundEnabled()) return;
+      const c = runningContext();
+      const buf = sample(INTRO_VOICE.url);
+      const out = audioOutput();
+      if (!c || !buf || !out || at >= buf.duration - 0.2) return;
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      const gain = c.createGain();
+      gain.gain.value = INTRO_VOICE.gain;
+      src.connect(gain).connect(out);
+      src.onended = () => gain.disconnect();
+      src.start(c.currentTime, at);
+      voice = { c, src, gain, zero: c.currentTime - at };
+    };
+
+    const clock = (now: number) => {
+      if (!voice) return (now - t0) / 1000;
+      // What is heard now: the context's clock minus the output latency.
+      const lag = voice.c.outputLatency || voice.c.baseLatency || 0;
+      return voice.c.currentTime - voice.zero - lag;
+    };
 
     const frame = (now: number) => {
-      const t = (now - t0) / 1000;
+      t = Math.max(t, clock(now));
+      tryVoice(t);
       if (!last || t >= last.end) {
         onDoneRef.current();
         return;
@@ -36,11 +76,29 @@ export default function IntroSubtitles({
       const index = cues.findIndex((c) => t >= c.start && t < c.end);
       const count =
         index < 0 ? 0 : reduced ? cues[index].text.length : typedCount(cues[index], t);
-      setView((v) => (v.index === index && v.count === count ? v : { index, count }));
+      // A click when new characters appeared (spaces don't type).
+      const before = index === shown.index ? shown.count : 0;
+      if (!reduced && index >= 0 && count > before && /\S/.test(cues[index].text.slice(before, count))) {
+        typeKey(voice ? SFX.keyUnderVoice : SFX.key);
+      }
+      const next = { index, count };
+      shown = next;
+      setView((v) => (v.index === index && v.count === count ? v : next));
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      // Skipped (PASSER) or done: the voice fades out quickly.
+      if (!voice) return;
+      const { c, src, gain } = voice;
+      gain.gain.setTargetAtTime(0, c.currentTime, 0.05);
+      try {
+        src.stop(c.currentTime + 0.3);
+      } catch {
+        // already stopped
+      }
+    };
   }, [cues]);
 
   const cue = view.index >= 0 ? cues[view.index] : null;

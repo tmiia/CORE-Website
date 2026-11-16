@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   setForgeProgress,
   setLive,
@@ -10,8 +10,9 @@ import {
 } from "@/lib/core-fm/stageCues";
 import { EXPERIENCE } from "@/lib/experience/config";
 import { type MenuGenre, menuModels } from "@/lib/experience/genres";
-import { installAudioUnlock } from "@/lib/experience/hum";
-import { autoTime, INTRO_LINES } from "@/lib/experience/introScript";
+import { loadSample } from "@/lib/experience/audio";
+import { INTRO_CUES, INTRO_VOICE } from "@/lib/experience/introScript";
+import { softGlitch } from "@/lib/experience/sfx";
 import GenreMenu from "./GenreMenu";
 import HoldButton from "./HoldButton";
 import IntroSubtitles from "./IntroSubtitles";
@@ -20,7 +21,7 @@ import Loader from "./Loader";
 /**
  * loading → hold (forge the logo) → forged (chrome alone) → dissolve (the logo
  * sinks into the ASCII as the field and the wave form; REC goes live) → intro
- * (subtitles) → menu (the logo comes back, genre menu).
+ * (voice-over and its subtitles) → menu (the logo comes back, genre menu).
  */
 type Phase = "loading" | "hold" | "forged" | "dissolve" | "intro" | "menu";
 
@@ -48,11 +49,10 @@ const NEXT: Partial<Record<Phase, [Phase, number]>> = {
  */
 export default function HomeExperience({ genres }: { genres: MenuGenre[] }) {
   const [phase, setPhase] = useState<Phase>(() => (played ? "menu" : "loading"));
-  const cues = useMemo(() => autoTime(INTRO_LINES), []);
-
   useEffect(() => {
-    installAudioUnlock();
     if (new URLSearchParams(window.location.search).has("nointro")) setPhase("menu");
+    // The voice-over loads behind the loader (it plays only if sound is on).
+    else if (!played) void loadSample(INTRO_VOICE.url);
   }, []);
 
   // The genre pages' models load (and warm up) behind the loader.
@@ -86,6 +86,11 @@ export default function HomeExperience({ genres }: { genres: MenuGenre[] }) {
     setLogoCue(s.logo);
     if (phase !== "hold") setForgeProgress(phase === "forged" ? 1 : 0);
     if (phase === "menu") played = true;
+    // The logo sinks into the glyph field as it forms, flickering, then calm:
+    // a light crackle that settles with it.
+    if (phase === "dissolve" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      softGlitch(1.2, true);
+    }
     const next = NEXT[phase];
     if (!next) return;
     const id = window.setTimeout(() => setPhase(next[0]), next[1]);
@@ -108,10 +113,13 @@ export default function HomeExperience({ genres }: { genres: MenuGenre[] }) {
       {phase === "hold" && <HoldButton onComplete={() => setPhase("forged")} />}
       {phase === "intro" && (
         <>
-          <IntroSubtitles cues={cues} onDone={() => setPhase("menu")} />
+          <IntroSubtitles cues={INTRO_CUES} onDone={() => setPhase("menu")} />
           <button
             type="button"
-            onClick={() => setPhase("menu")}
+            onClick={() => {
+              softGlitch(0.18); // a zap: the voice is cut off
+              setPhase("menu");
+            }}
             className="fixed bottom-0 right-0 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] font-vcr text-[0.75rem] uppercase tracking-[0.08em] text-white/70 transition-colors hover:text-white focus-visible:text-white"
           >
             PASSER ▸

@@ -65,6 +65,26 @@ body {
   }
 }
 
+/* Header sound toggle: level-meter bars jumping in steps while sound is on
+   (each bar has its own duration and delay, SoundToggle). */
+@keyframes eq-bar {
+  0% {
+    transform: scaleY(0.35);
+  }
+  25% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.55);
+  }
+  75% {
+    transform: scaleY(0.85);
+  }
+}
+.eq-bar {
+  animation: eq-bar 0.8s steps(1) infinite;
+}
+
 /* Hint blink, as on TV1 (.result-hint--send). */
 .hint-blink {
   animation: hint-blink 1.6s steps(1) infinite;
@@ -361,6 +381,7 @@ body {
     color: #000;
   }
   .caret,
+  .eq-bar,
   .hint-blink,
   .rec-blink,
   .wipe-x,

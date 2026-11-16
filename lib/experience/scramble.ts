@@ -1,7 +1,10 @@
 // Decode effect from something.fm@7129c50 client/tv1/hud/scramble.ts,
 // rewritten without gsap (one rAF loop). Same defaults and behaviour: each
 // character fades in (staggered), flickers through `shuffles` random ASCII
-// glyphs, then lands. Whitespace is not scrambled.
+// glyphs, then lands. Whitespace is not scrambled. Like on the installation,
+// every decode types (sfx.ts typingRun) for as long as it runs.
+
+import { typingRun } from "./sfx";
 
 const RANDOM = Array.from({ length: 126 - 33 + 1 }, (_, i) =>
   String.fromCharCode(33 + i),
@@ -44,9 +47,11 @@ export function scrambleText(
   const total = (chars.length - 1) * stagger + fade + shuffles * step;
   const t0 = performance.now();
   let raf = 0;
+  let endTyping = () => {};
 
   const finish = () => {
     cancelAnimationFrame(raf);
+    endTyping();
     running.delete(el);
     el.textContent = text;
   };
@@ -76,6 +81,7 @@ export function scrambleText(
   }
 
   raf = requestAnimationFrame(frame);
+  endTyping = typingRun(total);
   running.set(el, finish);
   return finish;
 }

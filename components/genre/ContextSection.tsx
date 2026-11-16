@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { printDown, typeKey } from "@/lib/experience/sfx";
 import SectionTitle from "./SectionTitle";
 
 export interface ContextArchive {
@@ -45,7 +46,9 @@ const isText = (run: ContextRun): run is { text: string } => "text" in run;
  * 01 LE CONTEXTE. The section pins (sticky frame in a tall wrapper); the text,
  * centred in the height, types itself as you scroll (scrolling back erases
  * it), source notes appearing as it passes them; then the archives are laid on
- * top of it one by one, like photos put down on a table. Screen readers get
+ * top of it one by one, like photos put down on a table. Sounds: a key click
+ * as it types (at most one per frame, sfx.ts limits the rate), a light paper
+ * touch as a print is put down. Screen readers get
  * the full text (and the notes as links); `reduced-motion`: no pin,
  * everything shown.
  */
@@ -123,6 +126,7 @@ export default function ContextSection({
     let p = 0;
     let raf = 0;
     let shown = -1;
+    let primed = false; // no sounds on the first read (a page opened mid-section)
     let dim = false;
     let visible = true;
     const on = archives.map(() => false);
@@ -134,6 +138,8 @@ export default function ContextSection({
       // Typing: one global character count, spread over the text runs.
       const n = Math.round(clamp01((p - typeFrom) / Math.max(1e-6, typeTo - typeFrom)) * total);
       if (n !== shown) {
+        // A key click as the scroll types (or erases), not on the first read.
+        if (shown >= 0) typeKey();
         shown = n;
         texts.forEach(({ text }, k) => {
           const typed = typedRefs.current[k];
@@ -151,15 +157,20 @@ export default function ContextSection({
         noteAt.forEach((at, j) => noteRefs.current[j]?.classList.toggle("invisible", n < at));
         caretRef.current?.classList.toggle("hidden", n < total);
       }
-      // Archives: laid one by one, lifted again when scrolling back.
+      // Archives: laid one by one, lifted again when scrolling back. One
+      // sound per frame even if a fast scroll lays several; lifting is silent.
+      let landed = false;
       archives.forEach((_, i) => {
         const want = p >= landAt(i);
         if (want === on[i]) return;
         on[i] = want;
+        if (want) landed = true;
         photoRefs.current[i]?.toggleAttribute("data-on", want);
         if (want && visible) play(video(i));
         else video(i)?.pause();
       });
+      if (primed && landed) printDown();
+      primed = true;
       const wantDim = archives.length > 0 && p >= landAt(0);
       if (wantDim !== dim) {
         dim = wantDim;

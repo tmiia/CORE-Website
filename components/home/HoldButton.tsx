@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { setForgeProgress } from "@/lib/core-fm/stageCues";
+import { unlockAudio } from "@/lib/experience/audio";
 import { EXPERIENCE } from "@/lib/experience/config";
 import { hapticSuccess, hapticTick } from "@/lib/experience/haptics";
-import { Hum, unlockAudio } from "@/lib/experience/hum";
+import { Hum } from "@/lib/experience/hum";
 import { scrambleText } from "@/lib/experience/scramble";
 import { onSoundChange, setSoundEnabled, SOUND_DEFAULT, soundEnabled } from "@/lib/experience/sound";
 

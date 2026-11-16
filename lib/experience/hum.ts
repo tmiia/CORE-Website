@@ -5,71 +5,8 @@
  * (pointerdown): that gesture also unlocks audio for the rest of the visit.
  */
 
-import { onSoundChange, soundEnabled } from "./sound";
-
-let shared: AudioContext | null = null;
-let bus: GainNode | null = null;
-
-/** The site's AudioContext, once a gesture created it (for the voice-over). */
-export function audioContext(): AudioContext | null {
-  return shared;
-}
-
-function ensureContext(): AudioContext | null {
-  if (shared || typeof window === "undefined") return shared;
-  const Ctor =
-    window.AudioContext ??
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  shared = Ctor ? new Ctor() : null;
-  return shared;
-}
-
-/**
- * Where the site's sounds connect (not straight to the speakers): silent when
- * the visitor chose no sound, with a short fade when it changes.
- */
-export function audioOutput(): AudioNode | null {
-  const c = ensureContext();
-  if (!c) return null;
-  if (!bus) {
-    const out = c.createGain();
-    out.gain.value = soundEnabled() ? 1 : 0;
-    out.connect(c.destination);
-    onSoundChange(() => out.gain.setTargetAtTime(soundEnabled() ? 1 : 0, c.currentTime, 0.05));
-    bus = out;
-  }
-  return bus;
-}
-
-/** Call inside a user gesture (e.g. "sound on"): audio can play from now on. */
-export function unlockAudio(): void {
-  void ensureContext()?.resume();
-}
-
-let unlockInstalled = false;
-
-/**
- * Browsers only let audio start after a "user activation": a mouse or key
- * *press*, but for touch the *release* (pointerup / touchend) — a finger going
- * down could still become a scroll. So a first touch-and-hold can't make sound
- * until the finger lifts. This resumes the context on whichever gesture comes
- * first, anywhere on the page, so the rest of the visit (voice-over) has sound.
- */
-export function installAudioUnlock(): void {
-  if (unlockInstalled || typeof window === "undefined") return;
-  unlockInstalled = true;
-  const events = ["pointerdown", "pointerup", "touchend", "keydown", "click"];
-  const unlock = () => {
-    const c = ensureContext();
-    if (!c) return;
-    void c.resume().then(() => {
-      if (c.state === "running") {
-        events.forEach((type) => window.removeEventListener(type, unlock, true));
-      }
-    });
-  };
-  events.forEach((type) => window.addEventListener(type, unlock, true));
-}
+import { audioContext, ensureAudioContext } from "./audio";
+import { effectsOutput } from "./sfx";
 
 export const HUM = {
   level: [0.05, 0.17] as [number, number], // master gain [hold start, full]
@@ -87,14 +24,14 @@ export class Hum {
   private noiseGain: GainNode | null = null;
 
   start(): void {
-    const c = ensureContext();
+    const c = ensureAudioContext();
     if (!c) return;
     void c.resume(); // works if this press counts as an activation (mouse, key)
     if (this.master) return;
 
     this.master = c.createGain();
     this.master.gain.value = 0;
-    this.master.connect(audioOutput() ?? c.destination);
+    this.master.connect(effectsOutput() ?? c.destination); // with the other effects (SFX.master)
 
     this.filter = c.createBiquadFilter();
     this.filter.type = "lowpass";
@@ -134,7 +71,7 @@ export class Hum {
 
   /** Every frame: p = hold progress 0..1. */
   update(p: number, holding: boolean): void {
-    const c = shared;
+    const c = audioContext();
     if (!c || !this.master || !this.filter || !this.saw || !this.sub || !this.noiseGain) return;
     const t = c.currentTime;
     const lerp = ([a, b]: [number, number], k: number) => a + (b - a) * k;
@@ -147,7 +84,7 @@ export class Hum {
 
   /** Hold complete: a swell, then a 1.2 s decay, then stop. */
   complete(): void {
-    const c = shared;
+    const c = audioContext();
     if (!c || !this.master || !this.filter) return;
     const t = c.currentTime;
     this.master.gain.cancelScheduledValues(t);
@@ -160,7 +97,7 @@ export class Hum {
 
   /** Released / unmounted: quick fade, then stop. */
   stop(): void {
-    const c = shared;
+    const c = audioContext();
     if (!c || !this.master) return;
     const t = c.currentTime;
     this.master.gain.setTargetAtTime(0, t, 0.08);

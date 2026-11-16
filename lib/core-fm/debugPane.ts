@@ -9,6 +9,16 @@ import { LOGO_FX } from "./logo/LogoLayer";
 import { setLogoCue, stageCues } from "./stageCues";
 import { TUNER_FX } from "./wave/GhostTuner";
 import { DEFAULT_WAVE_PARAMS, WAVE_FX, type WaveParams } from "./wave/WaveLayer";
+import { INTRO_VOICE } from "@/lib/experience/introScript";
+import {
+  appearGlitch,
+  glitch,
+  printDown,
+  SFX,
+  softGlitch,
+  typeKey,
+  typingRun,
+} from "@/lib/experience/sfx";
 
 type Range = { min: number; max: number; step: number };
 type ChangeEvent<T = unknown> = { value: T };
@@ -374,10 +384,32 @@ export function mountDebugPane(stage: BackgroundStage): { dispose(): void } {
     .addBinding(v, "darkness", { min: 0, max: 1, step: 0.01 })
     .on("change", (e: ChangeEvent<number>) => (vignette.darkness = e.value));
 
+  // --- Sound: levels by ear (sound on, after a first click) ---
+  const fSound = pane.addFolder({ title: "Son", expanded: false });
+  const level = { min: 0, max: 0.6, step: 0.01 };
+  fSound.addBinding(SFX, "master", { label: "effets (tous)", min: 0, max: 1.5, step: 0.01 });
+  fSound.addBinding(INTRO_VOICE, "gain", { label: "voix", min: 0, max: 3, step: 0.05 });
+  fSound.addBinding(SFX, "key", { label: "frappe (scroll)", ...level });
+  fSound.addBinding(SFX, "keyUnderVoice", { label: "frappe (intro)", ...level });
+  fSound.addBinding(SFX, "decode", { label: "frappe (déchiffrage)", ...level });
+  fSound.addBinding(SFX, "decodeRate", { label: "frappes / s", min: 5, max: 30, step: 0.5 });
+  fSound.addBinding(SFX, "glitch", { label: "glitch", ...level });
+  fSound.addBinding(SFX, "glitchBody", { label: "glitch (grave)", ...level });
+  fSound.addBinding(SFX, "glitchSoft", { label: "glitch léger", ...level });
+  fSound.addBinding(SFX, "appear", { label: "glitch modèle", ...level });
+  fSound.addBinding(SFX, "print", { label: "photo posée", ...level });
+  fSound.addBinding(SFX, "printFall", { label: "photo : contact (s)", min: 0, max: 0.5, step: 0.01 });
+  fSound.addButton({ title: "Tester : frappe" }).on("click", () => typeKey());
+  fSound.addButton({ title: "Tester : déchiffrage" }).on("click", () => typingRun(0.6));
+  fSound.addButton({ title: "Tester : glitch" }).on("click", () => glitch());
+  fSound.addButton({ title: "Tester : glitch léger" }).on("click", () => softGlitch());
+  fSound.addButton({ title: "Tester : glitch modèle" }).on("click", () => appearGlitch());
+  fSound.addButton({ title: "Tester : photo posée" }).on("click", () => printDown());
+
   // --- Export: paste the result back to lock the values in code ---
   pane.addButton({ title: "Copy config (JSON)" }).on("click", () => {
     const json = JSON.stringify(
-      { logo: LOGO_FX, wave: waveParams, waveFx: WAVE_FX, tuner: TUNER_FX, stage: STAGE_FX, ascii: a, bloom: b, vignette: v },
+      { logo: LOGO_FX, wave: waveParams, waveFx: WAVE_FX, tuner: TUNER_FX, stage: STAGE_FX, ascii: a, bloom: b, vignette: v, sfx: SFX, voice: INTRO_VOICE },
       null,
       2,
     );

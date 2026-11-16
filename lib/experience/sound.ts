@@ -1,9 +1,10 @@
 /**
- * Sound on/off, chosen on the HOLD screen and remembered on this device. All
- * the site's audio (the hum, later the voice-over) goes through one output
- * that follows it (audioOutput() in hum.ts). Default: off. The browser won't
- * play anything before a click anyway, so turning it on is the visitor's
- * click ("AVEC SON"), which also unlocks the audio.
+ * Sound on/off, chosen on the HOLD screen (then the header's toggle) and
+ * remembered on this device. All the site's audio (the hum, the voice-over,
+ * typing and glitches) goes through one output that follows it (audioOutput()
+ * in audio.ts). Default: off. The browser won't play anything before a click
+ * anyway, so turning it on is the visitor's click ("AVEC SON"), which also
+ * unlocks the audio.
  */
 const KEY = "corefm-sound";
 export const SOUND_DEFAULT = false;

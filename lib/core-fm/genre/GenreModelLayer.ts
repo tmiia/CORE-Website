@@ -66,6 +66,9 @@ export class GenreModelLayer {
   level = 0;
   /** 0..1, decays after the model appears (extra glitch). */
   glitch = 0;
+  /** Called when a model starts appearing on screen with its glitch (the
+   * page plays its sound); not in reduced motion. */
+  onAppear: (() => void) | null = null;
 
   private readonly fitRoot = new Group(); // position + scale
   private readonly lean = new Group(); // facing + tilt
@@ -196,7 +199,10 @@ export class GenreModelLayer {
     if (want !== (this.current?.url ?? null) && swap) {
       this.detach();
       const next = want ? this.loaded.get(want) : undefined;
-      if (want && next) this.attach(want, next);
+      if (want && next) {
+        this.attach(want, next);
+        if (!still && onScreen) this.onAppear?.();
+      }
     }
 
     const shown = want !== null && this.current?.url === want;
